@@ -6,7 +6,7 @@ module Inival
     real(kind=mpc),parameter :: t1=20*Period          ! Конец интервала интегрирования (начало=0)
     integer,parameter :: ad_ord=6                 ! Порядок для методов Адамса
     integer,parameter :: D = tDim+1
-    real(kind=mpc),parameter :: h=0.1_mpc           ! Шаг интегрирования
+    real(kind=mpc),parameter :: h=0.01_mpc           ! Шаг интегрирования
 !     integer, parameter :: D = 2*spcdim*Nbodies                 ! Размерность системы
 !     real(kind=mpc),dimension(D),parameter :: X0 =(/&
 !         0.97000436, -0.24308753,&

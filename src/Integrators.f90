@@ -5,24 +5,26 @@ module Integrators
     use Poly
     use NewtSolve
     implicit none
+   
+    logical :: printp
 
 contains
 
-    function euler_step(t, x) result(x1)
-        real(mpc), intent(in) :: t, x(:)
-        real(mpc) :: x1(size(x)), k(4, size(x))
+    function euler_step(t, x, h) result(x1)
+        real(mpc), intent(in) :: t, x(:), h
+        real(mpc) :: x1(size(x))
 
         x1 = x + h * f(t,x)
     end function euler_step
     
-    function runge_step(t, x) result(x1)
-        real(mpc), intent(in) :: t, x(:)
+    function runge_step(t, x, h) result(x1)
+        real(mpc), intent(in) :: t, x(:), h
         real(mpc) :: x1(size(x)), k(4, size(x))
 
         k(1,:) = h*f(t, x) 
-        k(2,:) = h*f(t + step*0.5_mpc, x + 0.5_mpc*k(1,:)) 
-        k(3,:) = h*f(t + step*0.5_mpc, x + 0.5_mpc*k(2,:)) 
-        k(4,:) = h*f(t + step, x + k(3,:)) 
+        k(2,:) = h*f(t + h*0.5_mpc, x + 0.5_mpc*k(1,:)) 
+        k(3,:) = h*f(t + h*0.5_mpc, x + 0.5_mpc*k(2,:)) 
+        k(4,:) = h*f(t + h, x + k(3,:)) 
         x1 = x + 1.0_mpc/6.0_mpc * & 
             (k(1,:) + 2.0_mpc*k(2,:) + 2.0_mpc*k(3,:) + k(4,:))
     end function runge_step
@@ -31,13 +33,24 @@ contains
         real(mpc) :: x(size(x0)), t, step
         integer :: i, N, fd
         optional :: fd
+        real(mpc) :: S, S_prev
         N = int((t1-t0)/h)
         t = t0
         x = x0
+        S_prev = 0; S = p_S(x)
         do i = 0, N-1
-            x = runge_step(t,x)
+            if (present(fd) .and. printp) write(fd,*) t, x
+            x = runge_step(t,x, step)
             t = t + step
-            if (present(fd)) write(fd,*) t, x
+            S_prev = S; S = p_S(x)
+            if (S_prev*S < 0.0_mpc) then
+                step = -S; weirdstep = .TRUE.
+                printp = .TRUE.
+            else
+                step = h; weirdstep = .FALSE.
+                printp = .FALSE.
+            end if
+
         end do
     end function runge_ode
 

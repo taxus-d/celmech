@@ -11,4 +11,4 @@ set xrange[0:120]
 set yrange[-1:1]
 
 plot filen usi 14:3 w l
-system('feh '.outfile)
+system('feh '.outfile.'&')

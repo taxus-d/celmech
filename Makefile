@@ -119,9 +119,6 @@ backup: distclean
 dummy:
 	@echo $(OBJECTS)
 
-poincare-plot:
-	gnuplot -e "type = 'rk'" viz/poinc_sec.plt
-
 .PHONY: test clean distclean backup dummy
 .PRECIOUS: %.d
 

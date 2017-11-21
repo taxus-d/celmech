@@ -5,7 +5,7 @@ module Celmech
     integer, parameter :: spcdim=2, Nbodies = 3
     integer, parameter :: tDim = 2*spcdim*Nbodies
     real(mpc), parameter :: m(Nbodies) = 1.0_mpc
-    logical :: printp
+    logical :: weirdstep
     contains 
         function motion_eq(tt,X) result(f)
             real(mpc), intent(in) :: tt
