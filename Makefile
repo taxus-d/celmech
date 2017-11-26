@@ -18,6 +18,7 @@ SOURCES = \
 	  Deriv.f90 \
 	  NewtSolve.f90 \
 	  Integrators.f90 \
+	  ODEsolve.f90 \
 	  cauchy.f90
 SOURCES_RAW = $(addprefix $(SRCDIR)/, $(SOURCES))
 OBJECTS  = ${SOURCES_RAW:.f90=.o}
@@ -41,7 +42,7 @@ CC       = gfortran
 CSTD     = -std=f2008 -pedantic
 WARN  = -Wall \
 	-Wimplicit-interface \
-#         -Wcompare-reals \
+	-Wcompare-reals \
 #         -Warray-temporaries
 
 PARALLEL  = #-fopenmp
@@ -118,6 +119,8 @@ backup: distclean
 
 dummy:
 	@echo $(OBJECTS)
+view:
+	@gnuplot viz/orbit.plt&
 
 .PHONY: test clean distclean backup dummy
 .PRECIOUS: %.d
