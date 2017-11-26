@@ -214,25 +214,6 @@ contains
         x = self%Xc(self%ord-1,:) 
     end function ex_adams_val
 
-    function adams_ex_ode(t1,fd) result(x)
-        real(mpc), intent(in) :: t1
-        real(mpc) :: x(size(x0)), t, Ac(0:ad_ord-1), &
-            Xc(0:ad_ord-1,size(x0)), fc(0:ad_ord-1,size(x0)) ! c -- cached
-        integer :: i, Nsteps, n, j, fd
-        optional :: fd
-        Nsteps = int((t1-t0)/h)
-        t = t0
-        x = x0
-        n = ad_ord ! чуть короче
-        t = t0 + h*(n-1)
-        do i = n-1, Nsteps
-            if (present(fd)) write(fd,*) t, Xc(n-1,:)
-        end do
-        j = min(Nsteps, n-1)
-        x= Xc(j,:)
-
-    end function adams_ex_ode
-
     function init_im_adams(ord, x0, t0, step) result(self)
         type(ImAdamsInt) :: self
         real(mpc) :: t0, step,x0(:)
@@ -254,13 +235,14 @@ contains
             self%Mc(j) = B(n, j)
         end do
         self%Xc(0,:) = x0
-        do j=0, n-1
+        do j=1, n-1
             self%t = self%t + self%h
             self%Xc(j,:) = internal_runge_step(self%t, self%Xc(j-1,:), self%h)
         end do
         do j=-1, n-2
             self%fc(j,:) = f(self%t0+self%h*(n-2-j), self%Xc(n-2-j, :))
         end do
+        call prarr(self%Xc)
         end associate
     contains
         function B(n,j)
