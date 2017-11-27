@@ -38,19 +38,21 @@ contains
         t = t0
         x = x0
         S_prev = 0; S = p_S(x)
+        printp = .TRUE.
+        step = h
         do i = 0, N-1
             if (present(fd) .and. printp) write(fd,*) t, x
             x = runge_step(t,x, step)
             t = t + step
             S_prev = S; S = p_S(x)
-            if (S_prev*S < 0.0_mpc) then
-                step = -S; weirdstep = .TRUE.
-                printp = .TRUE.
-            else
-                step = h; weirdstep = .FALSE.
-                printp = .FALSE.
-            end if
-
+!             if (S_prev*S < 0.0_mpc) then
+!                 step = -S; weirdstep = .TRUE.
+!                 printp = .TRUE.
+!             else
+!                 step = h; weirdstep = .FALSE.
+!                 printp = .TRUE.
+!             end if
+!
         end do
     end function runge_ode
 

@@ -23,10 +23,10 @@ program cauchy
 
     res=runge_ode(t1,fd_rk)
     write(fd_rk,*) t1, res
-!     res=adams_ex_ode(t1,fd_ae)
-!     write(fd_ae,*) t1, res
-!     res=adams_in_ode(t1,fd_ai)
-!     write(fd_ai,*) t1, res
+    res=adams_ex_ode(t1,fd_ae)
+    write(fd_ae,*) t1, res
+    res=adams_in_ode(t1,fd_ai)
+    write(fd_ai,*) t1, res
 
     close(fd_rk)
     close(fd_ae)
