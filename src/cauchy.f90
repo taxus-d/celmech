@@ -1,5 +1,6 @@
 program cauchy
     use ODEsolve
+    use Poincare
     use Utils
     use IO_array
     implicit none
@@ -25,9 +26,9 @@ program cauchy
     itg_rk = RungeKuttaInt(x0, t0, h)
     itg_ae = ExAdamsInt(ad_ord, x0, t0, h)
     itg_ai = ImAdamsInt(ad_ord, x0, t0, h)
-    call print_solution(itg_rk, t1, fd_rk)
-    call print_solution(itg_ae, t1, fd_ae)
-    call print_solution(itg_ai, t1, fd_ai)
+    call print_poincare_section(itg_rk, t1, fd_rk)
+    call print_poincare_section(itg_ae, t1, fd_ae)
+    call print_poincare_section(itg_ai, t1, fd_ai)
 !     res=runge_ode(t1,fd_rk)
 !     write(fd_rk,*) t1, res
 !     res=adams_ex_ode(t1,fd_ae)

@@ -19,6 +19,7 @@ SOURCES = \
 	  NewtSolve.f90 \
 	  Integrators.f90 \
 	  ODEsolve.f90 \
+	  Poincare.f90 \
 	  cauchy.f90
 SOURCES_RAW = $(addprefix $(SRCDIR)/, $(SOURCES))
 OBJECTS  = ${SOURCES_RAW:.f90=.o}

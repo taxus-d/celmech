@@ -5,7 +5,7 @@ module Poincare
 
 contains
 
-    subroutine print_poincare_section(integ,t1,fd) result(x)
+    subroutine print_poincare_section(integ,t1,fd)
         class(Integrator) :: integ
         real(mpc) :: t1, S, S_prev
         integer   :: i, N, fd, fd_
@@ -15,24 +15,20 @@ contains
         fd_ = stdout
         if (present(fd)) fd_ = fd
         N=int((t1-integ%t0)/integ%h)
-        do i = 1, N
-            write(fd,*) integ%time(), integ%val() 
-            call integ%step()
-        end do
-
+        
+        S_prev = 0; S = p_S(integ%val()) 
         do i = 0, N-1
-            S_prev = S; S = p_S(x)
             if (S_prev*S < 0.0_mpc) then
-                write (fd,*) integ%time(), integ%val()
-                call integ%step(-S)
                 weirdstep = .TRUE.
+                call integ%step(-S)
+                write (fd,*) integ%time(), integ%val()
             else
-                call integ%step()
                 weirdstep = .FALSE.
+                call integ%step()
             end if
-
+            S_prev = S; S = p_S(integ%val())
         end do
-    end function runge_ode
+    end subroutine print_poincare_section
 
-end module Integrators
+end module Poincare
 

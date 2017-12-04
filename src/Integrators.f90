@@ -124,6 +124,7 @@ contains
         if (present(h)) h_ = h
         
         self%x = internal_runge_step(self%t, self%x, h_)
+        self%t = self%t + h_
     end subroutine runge_step
     subroutine clear_runge(self)
         type(RungeKuttaInt), intent(inout) :: self
