@@ -22,7 +22,7 @@ program cauchy
     allocate(res(size(x0)))
     r_rk = 0;r_ae = 0; r_ai = 0
 
-!     itg_rk = RungeKuttaInt(x0, t0, h)
+    itg_rk = RungeKuttaInt(x0, t0, h)
     itg_ae = ExAdamsInt(ad_ord, x0, t0, h)
     itg_ai = ImAdamsInt(ad_ord, x0, t0, h)
     call print_solution(itg_rk, t1, fd_rk)

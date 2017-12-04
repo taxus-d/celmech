@@ -4,6 +4,8 @@ module Integrators
     use IO_array
     use Poly
     use NewtSolve
+
+!     logical :: weirdstep ! TODO: get rid of
     implicit none
    
     logical :: printp
@@ -74,10 +76,6 @@ module Integrators
         module procedure :: init_im_adams
     end interface ImAdamsInt
 
-
-
-
-    
 contains
     function init_runge(x0,t0,step) result(self)
         real(mpc), intent(in) :: x0(:), t0, step
