@@ -6,6 +6,7 @@ filen_ai = 'data/ai.dat'
 outfile = 'img/comp.png'
 set output outfile
 set term pngcairo size 1000,1000
+# set term qt
 
 set xrange[-1.5:1.5]
 set yrange[-1.5:1.5]

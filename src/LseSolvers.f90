@@ -30,7 +30,6 @@ contains
  ! для нормировки строки, одна и та же в методе Гаусса и Жордана.
      subroutine norm_line(arr)
          real(mpc), intent(inout), dimension(:) :: arr
-         integer :: j
          if (abs(arr(1)) < eps) write (stderr, *) arr(1), "Division may produce incorrect result"
          arr = arr / arr(1)
      end subroutine norm_line
@@ -38,7 +37,7 @@ contains
  ! общая функция для вычитания строки (для диагонализации)
      subroutine substract(a)
          real(mpc), intent(inout), dimension(:, :) :: a
-         integer :: i, j, n, m
+         integer :: i, n, m
          n = size(a, 1); m = size(a, 2)
          !$omp parallel
          !$omp workshare

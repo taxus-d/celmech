@@ -1,5 +1,5 @@
 module Celmech
-    use Prec
+    use Const
     use IO_array
     implicit none
     integer, parameter :: spcdim=2, Nbodies = 3
@@ -9,8 +9,8 @@ module Celmech
     contains 
         function motion_eq(tt,X) result(f)
             real(mpc), intent(in) :: tt
-            real(mpc), dimension(tDim) :: X
-            real(mpc), dimension(tDim) :: f
+            real(mpc), dimension(:), intent(in) :: X
+            real(mpc), dimension(size(X)) :: f
             real(mpc) :: f_m(2,Nbodies,spcdim), R(2,Nbodies,spcdim), R_abs(Nbodies)
             real(mpc) :: R_cur(Nbodies,spcdim)
             integer   :: i,j
@@ -34,9 +34,9 @@ module Celmech
         end function motion_eq
         function fast_motion_eq(tt,X) result(f)
             real(mpc), intent(in) :: tt
-            real(mpc), dimension(tDim) :: X
-            real(mpc), dimension(tDim) :: f
-            real(mpc) :: f_m(2,Nbodies,spcdim), R_abs(Nbodies), R_cur(Nbodies,spcdim)
+            real(mpc), dimension(:), intent(in) :: X
+            real(mpc), dimension(size(X)) :: f
+            real(mpc) ::  R_abs(Nbodies), R_cur(Nbodies,spcdim)
             integer   :: i,j
             ! 1 -- кординаты / скорости
             ! 2 -- тело
@@ -73,10 +73,9 @@ module Celmech
 
         function poincare_section_eq(tt,X) result(f)
             real(mpc), intent(in) :: tt
-            real(mpc), dimension(tDim+1) :: X
-            real(mpc), dimension(tDim+1) :: f
-            real(mpc) :: f_m(2,Nbodies,spcdim), R_abs(Nbodies), R_cur(Nbodies,spcdim), H
-            integer   :: i,j
+            real(mpc), dimension(:), intent(in) :: X
+            real(mpc), dimension(size(X)) :: f
+            real(mpc) :: H
 
 
             f(1:tDim) = fast_motion_eq(tt, X(1:tDim))

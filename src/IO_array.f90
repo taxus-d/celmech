@@ -1,5 +1,5 @@
 module IO_array
-    use Prec
+    use Const
     use IO
     implicit none
     

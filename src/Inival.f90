@@ -1,7 +1,7 @@
 module Inival
-    use Prec
+    use Const
     use Celmech
-    real(kind=mpc),parameter :: t0=0.0_mpc   
+    real(kind=mpc),parameter :: t0=0.00_mpc   
     real(mpc), parameter :: Period = 6.326_mpc;
     real(kind=mpc),parameter :: t1=20*Period          ! Конец интервала интегрирования (начало=0)
     integer,parameter :: ad_ord=6                 ! Порядок для методов Адамса
@@ -26,11 +26,10 @@ module Inival
         t0&
         /) ! Начальные условия задачи Коши
     interface
-        function eq_fun(tt,X) result(f)
-            import :: D, mpc
-            real(mpc):: tt, X(D)
-            intent(in) :: tt
-            real(mpc) :: f(D)
+        function eq_fun(t,X) result(f)
+            import :: mpc
+            real(mpc), intent(in) :: t, X(:)
+            real(mpc) :: f(size(X))
         end function eq_fun
     end interface
     procedure (eq_fun), pointer :: f => poincare_section_eq

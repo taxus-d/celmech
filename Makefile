@@ -6,9 +6,10 @@ SRCDIR  = src
 #$(shell mkdir -p $(DEPDIR)/$(SRCDIR) >/dev/null)
 
 SOURCES = \
-	  Prec.f90 \
+	  Const.f90 \
 	  IO.f90 \
 	  IO_array.f90 \
+	  Debug.f90 \
 	  Celmech.f90 \
 	  Inival.f90 \
 	  FuncIfaces.f90 \
@@ -38,12 +39,17 @@ CN = gnu
 endif
 
 ifeq ($(CN),gnu)
+COMPILER-ID = Gfortran
 CC       = gfortran
 # Flags, splitted for flexibility
 CSTD     = -std=f2008 -pedantic
 WARN  = -Wall \
 	-Wimplicit-interface \
 	-Wcompare-reals \
+	-Wno-surprising \
+	-Wno-unused \
+	-Wunderflow \
+	-Wconversion \
 #         -Warray-temporaries
 
 PARALLEL  = #-fopenmp
@@ -52,7 +58,7 @@ RELEASE   = -O2
 MODE      = $(DEBUG)
 CFLAGS    = -fmax-errors=10 -fcheck=all -fbacktrace -fall-intrinsics \
 	    -ftree-vectorize  -march=native  -ffast-math -cpp \
-	    $(CSTD) $(MODE) $(WARN_GF) $(PARALLEL)
+	    $(CSTD) $(MODE) $(WARN) $(PARALLEL)
 LFLAGS    = $(PARALLEL) $(MODE)
 DEPFLAGS  = -MT $@ -MMD -MP -MF $*.Td
 MODOUT    = -J$(SRCDIR)
@@ -61,18 +67,25 @@ POSTCOMPILE = @mv -f $*.Td $*.d && touch $@
 endif
 
 ifeq ($(CN), intel)
+COMPILER-ID = Intel Fortran
 CC        = ~/opt/intel/bin/ifort
-WARN   =
+WARN   	  = -warn all
 PARALLEL  = #-qopenmp
-SANITY =  -no-wrap-margin
-CFLAGS    = -free -p -g -stand f08  -fpp $(PARALLEL) $(SANITY) -xcore-avx2  #-ffast-math
+SANITY    =  -no-wrap-margin
+DEBUG     = -p -g
+RELEASE   = -O2
+MODE      = $(DEBUG)
+CFLAGS    = -free $(MODE) -stand f08 -traceback -fpe0 \
+	    -check all -fpp $(PARALLEL) $(SANITY) -xcore-avx2 \
+	    -fstack-protector -assume protect_parens -implicitnone
+#-ffast-math
 DEPFLAGS  = -gen-dep=$*.Td
-LFLAGS    = $(PARALLEL)
+LFLAGS    =  $(CFLAGS)
 MODOUT    = -module $(SRCDIR)
 POSTCOMPILE = @mv -f $*.Td $*.d && touch $@
 
 endif
-ifndef CC
+ifndef COMPILER-ID
 $(error "Unknown compiler")
 endif
 
