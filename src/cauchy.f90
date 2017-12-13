@@ -16,22 +16,23 @@ program cauchy
     open(fd_ae, file="data/ae.dat", action="write")
     open(fd_ai, file="data/ai.dat", action="write")
 
-    write(*,*) "``Variables``"
-    write(*,'(4(a16))') "h",  "t0","t1",  "ad_ord"
-    write(*,'(3(e16.8),i7)')  h,  t0,t1,  ad_ord
-    call prarr(X0)
+!     write(*,*) "``Variables``"
+!     write(*,'(4(a16))') "h",  "t0","t1",  "ad_ord"
+!     write(*,'(3(e16.8),i7)')  h,  t0,t1,  ad_ord
+!     call prarr(X0)
     allocate(res(size(x0)))
     r_rk = 0;r_ae = 0; r_ai = 0
-    
+    write(*,*) sqrt(sqrt(eps))
     itg_rk = RungeKuttaInt(f,x0,t0,h)
     itg_ae = ExAdamsInt(f, x0, t0, ad_ord, h)
     itg_ai = ImAdamsInt(f, x0, t0, ad_ord, h)
-    call print_solution(itg_rk, t1, fd_rk)
-    call print_solution(itg_ae, t1, fd_ae)
-    call print_solution(itg_ai, t1, fd_ai)
+!     call print_solution(itg_rk, t1, fd_rk)
+!     call print_solution(itg_ae, t1, fd_ae)
+!     call print_solution(itg_ai, t1, fd_ai)
 !     call print_poincare_section(itg_rk, t1, fd_rk)
 !     call print_poincare_section(itg_ae, t1, fd_ae)
 !     call print_poincare_section(itg_ai, t1, fd_ai)
+    call imporove_inipos(itg_rk, t0, x0, t1, fd_rk)
 
     close(fd_rk)
     close(fd_ae)

@@ -11,7 +11,12 @@ contains
         a = sqrt(sum(x**2))
     end function norm2
 #endif
-    
+   
+    function dyad_product(a,b) result(c)
+        real(mpc), intent(in), dimension(:) :: a,b
+        real(mpc), dimension(size(a),size(b)) :: c
+        c = spread(a,dim=2,ncopies=size(b)) * spread(b,dim=1,ncopies=size(a)) 
+    end function dyad_product
     subroutine reverse_cols(a)
         real(mpc), dimension(:, :), intent(inout) :: a 
 !         real(mpc), dimension(size(a,1), size(a, 2)) :: a1

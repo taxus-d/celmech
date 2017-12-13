@@ -14,5 +14,10 @@ module FuncIfaces
             real(mpc), dimension(size(x)) ::y
         end function 
         
+        function fRnR1(x) result(y)
+            use Inival
+            real(mpc), intent(in), dimension(:) :: x
+            real(mpc) ::y
+        end function 
     end interface 
 end module FuncIfaces

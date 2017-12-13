@@ -6,7 +6,7 @@ if (exists("type")) {
         type = 'rk'
 }
 filen = 'data/'.type.'.dat'
-outfile = 'img/'.type.'png'
+outfile = 'img/'.type.'.png'
 set output outfile
 set term pngcairo size 1000,1000
 
