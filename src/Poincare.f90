@@ -1,20 +1,106 @@
 module Poincare
     use Celmech
     use NewtSolve
+    use Minfinders
     use Integrators
     implicit none
-
+    logical :: weirdstep
+    interface
+        function eq_fun(t,X) result(f)
+            import :: mpc
+            real(mpc), intent(in) :: t, X(:)
+            real(mpc) :: f(size(X))
+        end function eq_fun
+        pure function p_sec(X) result(S)
+            import :: mpc
+            real(mpc), dimension(:),intent(in) :: X
+            real(mpc) :: S
+        end function p_sec
+        pure function p_sec_deriv(X) result(dS)
+            import :: mpc
+            real(mpc), dimension(:),intent(in) :: X
+            real(mpc), dimension(size(X)) :: dS
+        end function p_sec_deriv
+    end interface
+    type :: Psection
+        procedure(p_sec),nopass, pointer :: S
+        procedure(p_sec_deriv),nopass, pointer :: dS
+    end type Psection
+    type(Psection) :: current
+    type(Psection), dimension(Nbodies) :: sections
 contains
+    pure function sect_x_1_body(X) result (S)
+        real(mpc), dimension(:),intent(in) :: X
+        real(mpc) :: S
+        S = X(1) - 0.3
+    end function
+    
+    
+    pure function sect_x_1_body_deriv(X) result (dS)
+        real(mpc), dimension(:) :: X
+        real(mpc), dimension(size(X)) :: dS
+        intent(in) :: X
+        dS = 0
+        dS(1) = 1.0_mpc
+    end function
 
-    subroutine shift_to_intersect(integ, t1, retstat)
+    
+    pure function sect_x_2_body(X) result (S)
+        real(mpc), dimension(:),intent(in) :: X
+        real(mpc) :: S
+        S = X(3) - 0.3
+    end function
+    
+    
+    pure function sect_x_2_body_deriv(X) result (dS)
+        real(mpc), dimension(:) :: X
+        real(mpc), dimension(size(X)) :: dS
+        intent(in) :: X
+        dS = 0
+        dS(3) = 1.0_mpc
+    end function
+    
+    
+    pure function sect_x_3_body(X) result (S)
+        real(mpc), dimension(:),intent(in) :: X
+        real(mpc) :: S
+        S = X(5) - 0.3
+    end function
+    
+    
+    pure function sect_x_3_body_deriv(X) result (dS)
+        real(mpc), dimension(:) :: X
+        real(mpc), dimension(size(X)) :: dS
+        intent(in) :: X
+        dS = 0
+        dS(5) = 1.0_mpc
+    end function
+
+    ! a workaround to avoid explicit section pointer passing
+    function poincare_section_eq(tt,X) result(f)
+        real(mpc), intent(in) :: tt
+        real(mpc), dimension(:), intent(in) :: X
+        real(mpc), dimension(size(X)) :: f
+        real(mpc) :: H
+        
+        f(1:tDim) = fast_motion_eq(tt, X(1:tDim))
+        f(tDim+1) = 1
+        H = 1
+        if (weirdstep) H=dot_product(current%dS(X(1:tDim)),f(1:tDim))
+        f = f/H
+    end function
+    
+
+    subroutine shift_to_intersect(integ, t1, retstat, fd)
         class(Integrator), intent(inout) :: integ
         integer, intent(out), optional :: retstat
+        integer, optional :: fd
         real(mpc) :: t1, S, S_prev
         integer   :: i, N
         logical :: not_intersectp
-
+        
         N=int((t1-integ%t0)/integ%h)
-        S = p_S(integ%val()) 
+        S = current%S(integ%val()) 
         S_prev = S;
         i=0
         weirdstep = .FALSE.
@@ -26,8 +112,9 @@ contains
                 exit
             end if
             call integ%step()
+            if (present(fd)) write(*,*) integ%val()
             S_prev = S
-            S      = p_S(integ%val())
+            S      = current%S(integ%val())
             i      = i + 1
         end do
 
@@ -41,7 +128,6 @@ contains
             if (integ%t < t1) then 
                 retstat = EXIT_SUCCESS
             else
-                !> call warn("welcome to the end of the time")
                 retstat = EXIT_FAILURE
             end if
         end if
@@ -55,13 +141,15 @@ contains
         intent(in):: t1, fd
         optional  :: fd
         fd_ = stdout
-        if (present(fd)) [fd_ = fd
-       
+        if (present(fd)) fd_ = fd
+        if (.not. associated(current%S) .or. .not. associated(current%dS)) &
+            &error stop "Specify `currect` section!"
         call shift_to_intersect(integ, t1, rets)
         do while (rets == EXIT_SUCCESS)
             x = integ%val()
-!             if (x (7) > 0) write(fd,*) integ%time(), integ%val()
-            write(fd,*) integ%time(), integ%val()
+            write(fd,*) integ%time(), integ%val(), norm2(integ%val())
+            call integ%step
+            call shift_to_intersect(integ, t1, rets)
             call integ%step
             call shift_to_intersect(integ, t1, rets)
         end do
@@ -71,52 +159,155 @@ contains
 
     subroutine imporove_inipos(integ,t0,x0,t1,fd)
         class(Integrator) :: integ
-        real(mpc)  :: t1, t0,x0(:), x(size(x0)-2)
-        integer    :: i, N, fd, rets
+        real(mpc)  :: t1, t0,x0(:), x(size(x0)-1), delta, d1,d2
+        integer    :: i, N, fd, fd_, rets, k, j
         intent(in) :: t1, t0, fd
         optional   :: fd
-!         write(*,*) newtitsolve(intersection_diff, x0(1:size(x0)-1), 100, report_fd=stdout)
-!         call prarr(intersection_diff(x0))
+        
+        fd_ = stdout
+        if(present (fd)) fd_ = fd
 
-!         write(*,*) broydenitsolve(intersection_diff, x0(1:size(x0)-2), 1000,fd)
-!          x = x0(1:size(x0)-1)
-!         do i = -100, 100
-!             x = x0(1:size(x0)-1) + i*sqrt(sqrt(eps))
-!             write(*,*) i, intersection_diff(x)
+        ! extra check
+        do i = 1, Nbodies
+            if (.not. associated(sections(i)%S) &
+                &.or. .not. associated(sections(i)%dS)) &
+                & error stop "Define section list before improving!"
+        end do
+        x = x0(1:size(x0)-1)
+!         x0(2:size(x0)-1) = broydenitsolve(intersection_diff, x, 100,fd_)
+        x0(1:size(x0)-1) = conjgraddesc(intersection_diff_scalar,x,1000,fd_)
+!         write(*,*) broydenitsolve(f_2_sq, real((/1,1/),mpc), 100, stdout)
+!         k = 1; delta = 0
+!         do i = -100, 100,1
+!             delta = sqrt(sqrt(eps))*i
+!             write(*,'(f11.8)', advance='no') delta
+!             do k = 1, size(x)
+!                 x = x0(1:size(x))
+!                 x(k) = x0(k) + delta
+!                 write(*,'(f14.8)', advance='no') intersection_diff_scalar(x)
+!             end do
+!             write(*,*)
 !         end do
-!         write(*,*) intersection_diff(x - 11*sqrt(sqrt(eps)))
-    
+        
+!         x = x0(1:size(x))
+!         do i = -100, 100,5
+!             d1 = sqrt(sqrt(eps))*i
+!             x(1) = x0(1) + d1
+!             do j = -100,100,5
+!                 d2 = sqrt(sqrt(eps))*j
+!                 x(2) = x0(2) + d2
+!                 write(*,*) x(1), x(2), intersection_diff_scalar(x)
+!             end do
+!             write(*,*)
+!         end do
+        
     contains 
         function intersection_diff(xp) result(x)
             real(mpc), intent(in), dimension(:) :: xp
-            real(mpc), dimension(size(xp)) :: x, x1, x2
-            real(mpc) :: temp(size(xp)+2)
-            integer :: i, cd, retstat
+            real(mpc), dimension(size(xp)) :: x
+            real(mpc) :: temp(3, size(x0)), norms(2)
+            integer :: i, cd, retstat, inds(1), b = 1
             cd = size(x0)
-            call integ%set_inicond((/x0(1),xp,t0/), t0)
+            x = 0
+            call integ%set_inicond((/xp,t0/), t0)
             call integ%crewind()
+                
+            current%S => sections(2)%S
+            current%dS => sections(2)%dS
             call shift_to_intersect(integ, t1, retstat)
-            temp = integ%val(); x1 = temp(2:cd-1)
-            call integ%step()
+            temp(1, :) = integ%val()
+            
+            current%S => sections(3)%S
+            current%dS => sections(3)%dS
             call shift_to_intersect(integ, t1, retstat)
-            temp = integ%val(); x2 = temp(2:cd-1)
-            x = x2 - x1
+            temp(2, :) = integ%val()
+            temp(2, 1:cd-1) = cyclic_shift_bodies(temp(2, 1:cd-1), 1)
+            
+            current%S => sections(1)%S
+            current%dS => sections(1)%dS
+            call shift_to_intersect(integ, t1, retstat)
+            temp(3, :) = integ%val()
+            temp(3, 1:cd-1) = cyclic_shift_bodies(temp(3, 1:cd-1), -1)
+            
+            if (retstat == EXIT_FAILURE) then 
+                call loud_warn("welcome to the end of the time")
+                stop '!'
+            end if
+            x = temp(3, b:cd-1) + temp(2, b:cd-1) - temp(1, b:cd-1)
         end function 
-        function intersection_diff_norm(xp) result(x)
+
+        function intersection_diff_scalar(xp) result(dev)
             real(mpc), intent(in), dimension(:) :: xp
-            real(mpc), dimension(size(xp)) :: x1, x2
-            real(mpc) :: x
-            integer :: i, cd, retstat
+            real(mpc) :: dev
+            real(mpc) :: temp(6, size(x0))
+            integer :: i, cd, retstat, b = 1
             cd = size(x0)
-            call integ%set_inicond(xp, t0)
+            call integ%set_inicond((/xp,t0/), t0)
             call integ%crewind()
+               
+            current%S => sections(2)%S
+            current%dS => sections(2)%dS
             call shift_to_intersect(integ, t1, retstat)
-            x1 = integ%val()
-            call integ%step()
+            temp(1, :) = integ%val()
+            
+            current%S => sections(3)%S
+            current%dS => sections(3)%dS
             call shift_to_intersect(integ, t1, retstat)
-            x2 = integ%val()
-            x = norm2(x2 - x1)
+            temp(2, :) = integ%val()
+            temp(2, 1:cd-1) = cyclic_shift_bodies(temp(2, 1:cd-1), 1)
+            
+            current%S => sections(1)%S
+            current%dS => sections(1)%dS
+            call shift_to_intersect(integ, t1, retstat)
+            temp(3, :) = integ%val()
+            temp(3, 1:cd-1) = cyclic_shift_bodies(temp(3, 1:cd-1), -1)
+            
+            current%S => sections(2)%S
+            current%dS => sections(2)%dS
+            call shift_to_intersect(integ, t1, retstat)
+            temp(4, :) = integ%val()
+            
+            current%S => sections(3)%S
+            current%dS => sections(3)%dS
+            call shift_to_intersect(integ, t1, retstat)
+            temp(5, :) = integ%val()
+            temp(5, 1:cd-1) = cyclic_shift_bodies(temp(5, 1:cd-1), 1)
+            
+            current%S => sections(1)%S
+            current%dS => sections(1)%dS
+            call shift_to_intersect(integ, t1, retstat)
+            temp(6, :) = integ%val()
+            temp(6, 1:cd-1) = cyclic_shift_bodies(temp(6, 1:cd-1), -1)
+            
+            if (retstat == EXIT_FAILURE) then 
+                call loud_warn("welcome to the end of the time")
+                stop '!'
+            end if
+
+            dev =   norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
+                & + norm2(temp(5, 1:cd-1) - temp(2, 1:cd-1))**(2)&
+                & + norm2(temp(4, 1:cd-1) - temp(1, 1:cd-1))**(2)&
+                & + norm2(temp(2, 1:cd-1) - temp(1, 1:cd-1))**(2)&
+                & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2)
         end function 
+        
+        function test(x) result(f)
+            real(mpc) , intent(in) :: x(:)
+            real(mpc) :: f
+            f = x(1)**2 + x(2)**2  
+        end function test
+        function f_2_sq(x) result(y)
+        real(mpc),intent(in), dimension(:) :: x
+        real(mpc), dimension(size(x)) :: y
+        y = (/ (x(1) - 2.0_mpc)**2 + (x(2) - 3.0_mpc)**2 - 13.0_mpc ,&
+              &(x(1) - 4.0_mpc)**2 + (x(2) - 1.0_mpc)**2 -17.0_mpc /)
+    end function f_2_sq
+
+        function test2(x) result(f)
+            real(mpc) , intent(in) :: x(:)
+            real(mpc) :: f
+            f = 1.0_mpc/(x(1)**2 + x(2)**2)
+        end function test2
     end subroutine imporove_inipos
 
 end module Poincare

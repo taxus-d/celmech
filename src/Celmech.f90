@@ -5,8 +5,8 @@ module Celmech
     integer, parameter :: spcdim=2, Nbodies = 3
     integer, parameter :: tDim = 2*spcdim*Nbodies
     real(mpc), parameter :: m(Nbodies) = 1.0_mpc
-    logical :: weirdstep
-    contains 
+    
+contains 
         function motion_eq(tt,X) result(f)
             real(mpc), intent(in) :: tt
             real(mpc), dimension(:), intent(in) :: X
@@ -59,31 +59,23 @@ module Celmech
             end function ci
         end function fast_motion_eq
         
-        pure function p_S(X) result (S)
-            real(mpc), dimension(tDim),intent(in) :: X
-            real(mpc) :: S
-            S = X(1)
-        end function
-        pure function p_dS(X) result (dS)
-            real(mpc), dimension(tDim) :: X, dS
-            intent(in) :: X
-            dS(1) = 1.0_mpc
-            dS(2:) = 0
-        end function
-
-        function poincare_section_eq(tt,X) result(f)
-            real(mpc), intent(in) :: tt
-            real(mpc), dimension(:), intent(in) :: X
-            real(mpc), dimension(size(X)) :: f
-            real(mpc) :: H
-
-
-            f(1:tDim) = fast_motion_eq(tt, X(1:tDim))
-            f(tDim+1) = 1
-            H = 1
-            if (weirdstep) H = dot_product(p_dS(X),f(1:tDim))
-            f = f/H
-            
-        end function
-       
+        ! dir : +/- 1
+        function cyclic_shift_bodies(X, dir) result(X1)
+            real(mpc), dimension(tDim), intent(in) :: X
+            real(mpc), dimension(tDim) :: X1
+            integer :: i, ni, dir
+            do i = 1, Nbodies
+                ni = mod(Nbodies + i  - 1 + dir, Nbodies) + 1
+                X1(ci(1,i,1):ci(1,i,spcdim)) &
+                    &= X(ci(1,ni,1): ci(1,ni,spcdim)) 
+                X1(ci(2,i,1):ci(2,i,spcdim)) &
+                    &= X(ci(2,ni,1):ci(2,ni,spcdim)) 
+            end do
+        contains 
+            pure function ci(half,body,coord) result(i)
+                integer, intent(in) :: half, body, coord
+                integer :: i
+                i =  (half-1)*tDim/2 + (body-1)*spcdim + (coord-1) + 1
+            end function ci
+        end function cyclic_shift_bodies
 end module Celmech

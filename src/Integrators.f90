@@ -172,14 +172,16 @@ contains
     end function runge_val
 
 
-    function internal_euler_step(t, x, h) result(x1)
+    function internal_euler_step(f,t, x, h) result(x1)
+        procedure(int_f) :: f
         real(mpc), intent(in) :: t, x(:), h
         real(mpc) :: x1(size(x))
         x1 = x + h * f(t,x)
     end function internal_euler_step
     
 
-    function internal_runge_step(t, x, h) result(x1)
+    function internal_runge_step(f,t, x, h) result(x1)
+        procedure(int_f) :: f
         real(mpc), intent(in) :: t, x(:), h
         real(mpc) :: x1(size(x)), k(4, size(x))
 
@@ -199,7 +201,7 @@ contains
         h_ = self%h
         if (present(h)) h_ = h
         
-        self%x = internal_runge_step(self%t, self%x, h_)
+        self%x = internal_runge_step(self%f,self%t, self%x, h_)
         self%t = self%t + h_
     end subroutine runge_step
     
@@ -229,10 +231,10 @@ contains
         associate(n=>self%ord)
         do j=1,n-1
             self%t = self%t + self%h
-            self%Xc(j,:) = internal_runge_step(self%t, self%Xc(j-1,:), self%h)
+            self%Xc(j,:) = internal_runge_step(self%f, self%t, self%Xc(j-1,:), self%h)
         end do
         do j=0, n-1
-            self%fc(j,:) = f(self%t, self%Xc(n-1-j, :))
+            self%fc(j,:) = self%f(self%t, self%Xc(n-1-j, :))
             self%t = self%t - self%h
         end do
         end associate
@@ -251,9 +253,9 @@ contains
         self%dimen = size(x0)
         self%f => f
 
-        allocate (self%Mc(0:ad_ord-1))
-        allocate (self%Xc(0:ad_ord-1, size(x0)))
-        allocate (self%fc(0:ad_ord-1, size(x0)))
+        allocate (self%Mc(0:self%ord-1))
+        allocate (self%Xc(0:self%ord-1, size(x0)))
+        allocate (self%fc(0:self%ord-1, size(x0)))
 
         associate(n => self%ord)
         do j = 0, n-1
@@ -315,7 +317,7 @@ contains
         self%Xc(n-1,:) = self%Xc(n-1,:) + h_ * matmul(self%Mc, self%fc) 
         self%t = self%t + h_
         self%fc(1:n-1,:) = self%fc(0:n-2,:)
-        self%fc(0,:)     = f(self%t, self%Xc(n-1,:))
+        self%fc(0,:)     = self%f(self%t, self%Xc(n-1,:))
     end subroutine ex_adams_step
 
     
@@ -350,10 +352,10 @@ contains
         associate(n=>self%ord)
         do j=1, n-1
             self%t = self%t + self%h
-            self%Xc(j,:) = internal_runge_step(self%t, self%Xc(j-1,:), self%h)
+            self%Xc(j,:) = internal_runge_step(self%f, self%t, self%Xc(j-1,:), self%h)
         end do
         do j=-1, n-2
-            self%fc(j,:) = f(self%t0+self%h*(n-2-j), self%Xc(n-2-j, :))
+            self%fc(j,:) = self%f(self%t0+self%h*(n-2-j), self%Xc(n-2-j, :))
         end do
         end associate
     end subroutine im_adams_crewind
@@ -370,9 +372,9 @@ contains
         self%dimen = size(x0)
         self%f => f
 
-        allocate (self%Mc(-1:ad_ord-2))
-        allocate (self%Xc(0:ad_ord-1, size(x0)))
-        allocate (self%fc(-1:ad_ord-2, size(x0)))
+        allocate (self%Mc(-1:self%ord-2))
+        allocate (self%Xc(0:self%ord-1, size(x0)))
+        allocate (self%fc(-1:self%ord-2, size(x0)))
         
         associate (n=>self%ord)
         do j=-1,n-2
@@ -412,7 +414,7 @@ contains
         self%Xc(n-1  , :) = newtitsolve(impl, self%Xc(n-2, :),100)
         self%Xc(0:n-2, :) = self%Xc(1:n-1, :)
         self%t = self%t + h_
-        self%fc(-1   , :) = f(self%t, self%Xc(n-2,:))
+        self%fc(-1   , :) = self%f(self%t, self%Xc(n-2,:))
         self%fc(0:n-2, :) = self%fc(-1:n-3,:)
         end associate
     contains
@@ -420,7 +422,7 @@ contains
         function impl(x) result(y)
             real(mpc) :: x(:) , y(size(x))
             intent(in) :: x
-            y = x  - h_*self%Mc(-1)*f(self%t+h_,x) - self%Xc(self%ord-2,:) - &
+            y = x  - h_*self%Mc(-1)*self%f(self%t+h_,x) - self%Xc(self%ord-2,:) - &
                 h_*matmul(self%Mc(0:self%ord-2), self%fc(0:self%ord-2,:))
         end function impl
     end subroutine im_adams_step

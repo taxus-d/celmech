@@ -7,17 +7,19 @@ SRCDIR  = src
 
 SOURCES = \
 	  Const.f90 \
+	  FuncIfaces.f90 \
+	  randomfill.f90 \
 	  IO.f90 \
 	  IO_array.f90 \
 	  Debug.f90 \
 	  Celmech.f90 \
 	  Inival.f90 \
-	  FuncIfaces.f90 \
 	  Poly.f90 \
 	  Utils.f90 \
 	  LseSolvers.f90 \
 	  Deriv.f90 \
 	  NewtSolve.f90 \
+	  Minfinders.f90 \
 	  Integrators.f90 \
 	  ODEsolve.f90 \
 	  Poincare.f90 \
@@ -55,7 +57,7 @@ WARN  = -Wall \
 PARALLEL  = #-fopenmp
 DEBUG     = -pg
 RELEASE   = -O2
-MODE      = $(DEBUG)
+MODE      = $(RELEASE)
 CFLAGS    = -fmax-errors=10 -fcheck=all -fbacktrace -fall-intrinsics \
 	    -ftree-vectorize  -march=native  -ffast-math -cpp \
 	    $(CSTD) $(MODE) $(WARN) $(PARALLEL)

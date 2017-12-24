@@ -1,5 +1,5 @@
 module Utils
-    use Inival
+    use Const
     use omp_lib
     implicit none
 

@@ -12,8 +12,6 @@ set output outfile
 set term pngcairo size 1000,1000
 
 set grid
-set xrange[-1.5:1.5]
-set yrange[-1.5:1.5]
 
-plot filen usi 2:3 w l
+plot filen usi 1:2 w l, filen usi 1:3 w l
 system('feh '.outfile.'&')

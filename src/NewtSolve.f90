@@ -117,6 +117,48 @@ contains
         deallocate(solvcube%vertex)
     end function halfdivsolve
     
+    function bisectsolve(f, x0, ini_offset, N_max, report_fd) result(root)
+        procedure (fRnR1) :: f
+        real(mpc), dimension(:) :: x0
+        real(mpc) :: ini_offset
+        integer :: N_max, i 
+        integer, optional :: report_fd
+        intent(in) :: x0, N_max, ini_offset
+        real(mpc), dimension(size(x0)):: left, right, mid, root
+        left = x0 - ini_offset; right = x0 + ini_offset
+
+        if (f(left)*f(right) > 0) stop 'unable to solve'
+
+
+        i=0
+        do while (i < N_max .and. norm2(left - right) > sqrt(eps))
+            mid = 0.5*(left + right)
+            if (f(mid)*f(left) > 0) then 
+                left = mid
+            else
+                right = mid
+            endif
+            i = i+1
+        end do
+        root = 0.5*(left+right)
+    end function bisectsolve
+
+!     function bisectsolve(f, x0, ini_offset, N_max, report_fd) result()
+!         procedure (fRnR1) :: f
+!         real(mpc), dimension(:) :: x0
+!         real(mpc) :: ini_offset
+!         integer :: N_max, n, k
+!         integer, optional :: report_fd
+!         intent(in) :: x0, N_max, ini_offset
+!         real(mpc), dimension(size(x0)):: left, right, mid, root
+!
+!         n = size(x0)
+!         do k = 1, n
+!
+!         end do
+!
+!
+!     end function bisectsolve
     function broydenitsolve(f, x0, N_max, report_fd) result(root)
         ! NOTE: по поводу интерфейсов :
         !+ мне показалось, что будет лучше, если сигнатуры (FuncIfaces)
@@ -144,8 +186,8 @@ contains
         B  = -fp
         xc = gauss_solve(exmtx) + xp
         i  = 1
-        do while (i < N_max .and. norm2(xc - xp) > 2*sqrt(eps))
-            if (present (report_fd)) write(report_fd,*) xc, norm2(xc-xp)
+        do while (i < N_max .and. norm2(xc - xp) > eps)
+            if (present (report_fd)) write(report_fd,*) xc, norm2(f(xc))
             fc = f(xc) 
             J = J + dyad_product(((fc-fp) - matmul(J,(xc-xp)))/norm2(xc-xp)**2,xc-xp) 
             B = -fc 

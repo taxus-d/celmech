@@ -1,5 +1,5 @@
 module Deriv
-    use Inival
+    use Const
     use Utils
     use FuncIfaces
     use IO_array
@@ -36,12 +36,12 @@ contains
         seps = sqrt(eps)
         ! тут какая-то магия с точностью. 
         ! Оно иногда ломается, но я не знаю как лучше (
-        delta = seps
+        delta = seps!*x_1(i)
         x_1(i) = x_1(i) + delta 
 
         res = ( f(x_1) - f(x_0) ) / (delta)
         
-    end function pder
+    end function pder_vec
     function pder_scalar(f, i, x_0) result(res)
         integer, intent(in) :: i 
         real(mpc), intent(in), dimension(:) :: x_0
@@ -58,10 +58,9 @@ contains
         seps = sqrt(eps)
         delta = seps
         x_1(i) = x_1(i) + delta 
-
         res = ( f(x_1) - f(x_0) ) / (delta)
         
-    end function pder
+    end function pder_scalar
 
     
     !-----------------------------------------------------------------------

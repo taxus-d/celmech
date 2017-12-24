@@ -1,5 +1,5 @@
 module Poly
-    use Inival
+    use Const
 !     use IO
     implicit none
 

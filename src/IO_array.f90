@@ -1,5 +1,6 @@
 module IO_array
     use Const
+    use FuncIfaces
     use IO
     implicit none
     
@@ -42,46 +43,100 @@ contains
         character(len=*) :: ttl
 
         integer :: i, j, n, m, fdc
+        logical :: titlep, sizep
         m = size(a, 1); n = size(a, 2)
 
         fdc = stdout
         if (present(fd)) fdc = fd
         
-        write(*,*) 
-        if (present(ttl)) &
-            write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
-        write (fdc, '(a1,i8,8x,i8)') '#', m, n
-        if (present(ttl)) &
-            write (fdc, *) repeat('-',31)
+        fdc = stdout
+        if (present(fd)) fdc = fd
+        sizep = .TRUE.; titlep = .FALSE.
+        if (present(ttl)) then
+            if (ttl == '') then
+                sizep = .FALSE.; titlep = .FALSE.
+            else
+                titlep = .FALSE.
+            end if
+        end if
+
+        if (titlep) write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
+        if (sizep)  write (fdc, '(a1,i8,8x,i8)') '#', m, n
+        if (titlep) write (fdc, *) repeat('-',13)
+        
         do i = 1, m
             do j = 1, n
                 write (fdc, '(e16.7)', advance="no") a(i, j)
             end do
             write (fdc, *) 
         end do
+        write(*,*) ! blank line
     end subroutine print_matrix
 
-    subroutine print_array(a, fd, ttl)
+    subroutine print_array(a, ttl, fd)
         real(mpc)       , dimension(:) :: a 
         integer         , optional     :: fd
         character(len=*), optional     :: ttl
         intent(in) :: a, fd, ttl
         integer :: i, m, fdc
+        logical :: titlep, sizep
         m = size(a, 1)
         
         fdc = stdout
         if (present(fd)) fdc = fd
+        sizep = .TRUE.; titlep = .FALSE.
+        if (present(ttl)) then
+            if (ttl == '') then
+                sizep = .FALSE.; titlep = .FALSE.
+            else
+                titlep = .FALSE.
+            end if
+        end if
 
-        write(*,*) 
-        if (present(ttl)) &
-            write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
-        write (fdc, '(a1,i8)') '#', m
-        if (present(ttl)) &
-            write (fdc, *) repeat('-',13)
+        if (titlep) write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
+        if (sizep)  write (fdc, '(a1,i8)') '#', m
+        if (titlep) write (fdc, *) repeat('-',13)
         do i = 1, m
             write (fdc, '(e14.7)') a(i)
         end do
+        write(*,*) ! blank line
     end subroutine print_array
     
+    subroutine plot_2d_array(f, a, ttl, fd)
+        procedure(fRnR1) :: f
+        real(mpc)       , dimension(:,:) :: a 
+        integer         , optional       :: fd
+        character(len=*), optional       :: ttl
+        intent(in) ::     a, fd, ttl
+        
+        logical :: titlep, sizep
+        integer :: i, m, fdc, n, j
+        m = size(a, 1); n = size(a, 2)
+        
+        fdc = stdout
+        if (present(fd)) fdc = fd
+            
+        fdc = stdout
+        if (present(fd)) fdc = fd
+        sizep = .TRUE.; titlep = .FALSE.
+        if (present(ttl)) then
+            if (ttl == '') then
+                sizep = .FALSE.; titlep = .FALSE.
+            else
+                titlep = .FALSE.
+            end if
+        end if
+
+        if (titlep) write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
+        if (sizep)  write (fdc, '(a1,i8,8x,i8)') '#', m, n
+        if (titlep) write (fdc, *) repeat('-',13)
+        do i = 1, m
+            do j = 1, n
+                write (fdc, '(e16.7)', advance="no") a(i, j)
+            end do
+            write(fdc ,'(e16.7)') f(a(i,:))
+        end do
+        write(*,*) 
+    end subroutine plot_2d_array
 end module IO_array
 
