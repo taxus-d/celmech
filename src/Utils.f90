@@ -4,13 +4,12 @@ module Utils
     implicit none
 
 contains
-#ifdef norm2
-    function norm2(x) result(a)
+
+    pure function norm2(x) result(a)
         real(mpc), dimension(:), intent(in) :: x
         real(mpc) :: a
         a = sqrt(sum(x**2))
     end function norm2
-#endif
    
     function dyad_product(a,b) result(c)
         real(mpc), intent(in), dimension(:) :: a,b

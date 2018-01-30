@@ -1,8 +1,3 @@
-#ifdef __GFORTRAN__
-#define CONCAT(x,y) x/**/y
-#else
-#define CONCAT(x,y) x ## y
-#endif
 
 program cauchy
     use Inival
@@ -12,7 +7,8 @@ program cauchy
     use IO_array
     implicit none
 
-    integer   :: fd_rk = 10, fd_ae = 11, fd_ai = 12, fd_x0 = 13, fd_rk1 = 14
+    integer   :: fd_rk = 10, fd_ae = 11, fd_ai = 12, fd_x0 = 13, fd_rk1 = 14,&
+        fd_track = 15
     real(mpc) :: r_rk, r_ae, r_ai
     real(mpc), allocatable, dimension(:) :: x0_mod
     type(RungeKuttaInt) :: itg_rk
@@ -23,6 +19,7 @@ program cauchy
     
     open(fd_rk, file="data/rk.dat", action="write")
     open(fd_rk1, file="data/rk1.dat", action="write")
+    open(fd_track, file="data/track.dat", action="write")
     open(fd_ae, file="data/ae.dat", action="write")
     open(fd_ai, file="data/ai.dat", action="write")
     open(fd_x0, file="test/x0.dat", action="read")
@@ -45,29 +42,23 @@ program cauchy
 !     call print_poincare_section(itg_ai, t1, fd_ai)
 !     x0_mod = x0
     read(fd_x0, *) x0_mod(1:12)
+    close(fd_x0)
     x0_mod(13) = t0
-    x0_mod = x0
-    ! macros, smart macros, where are you..(
-#define std_sect_assign(i) \
-    sections(i)%S => CONCAT(sect_x_,i)_body; \
-    sections(i)%dS => CONCAT(sect_x_,i)_body_deriv
-
-    std_sect_assign(1)
-    std_sect_assign(2)
-    std_sect_assign(3)
+        x0_mod = x0
+    call prarr (x0_mod)
     call imporove_inipos(itg_rk, t0, x0_mod, t1, stdout)
     call itg_rk%set_inicond(x0_mod, t0)
     call itg_rk%crewind()
-    call print_solution(itg_rk, 200*t1, fd_rk1)
-    close(fd_x0)
-!     open(fd_x0, file="test/x0.dat", action="write")
-!     write(fd_x0, *) x0_mod
+    call print_solution(itg_rk, 100*Period, fd_rk1)
+    open(fd_x0, file="test/x0.dat", action="write")
+    write(fd_x0, *) x0_mod
     
     close(fd_rk)
     close(fd_rk1)
     close(fd_ae)
     close(fd_ai)
     close(fd_x0)
+    close(fd_track)
     deallocate(x0_mod)
 !     write(*,*) "Residues:"
 !     write(*,*) "rk", sqrt(r_rk)

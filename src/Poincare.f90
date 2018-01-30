@@ -1,5 +1,10 @@
+! vile hack to share macros
+#include "macros.f90"
+
 module Poincare
+    use Utils
     use Celmech
+    use Inival
     use NewtSolve
     use Minfinders
     use Integrators
@@ -156,10 +161,15 @@ contains
 
     end subroutine print_poincare_section
 
+    ! smart macros, where are you..(
+#define std_sect_assign(i,j) \
+    sections(i)%S => CONCAT(sect_x_,j)_body; \
+    sections(i)%dS => CONCAT(sect_x_,j)_body_deriv
+
 
     subroutine imporove_inipos(integ,t0,x0,t1,fd)
         class(Integrator) :: integ
-        real(mpc)  :: t1, t0,x0(:), x(size(x0)-1), delta, d1,d2
+        real(mpc)  :: t1, t0,x0(:), x(size(x0)-1), delta, d1,d2,cell
         integer    :: i, N, fd, fd_, rets, k, j
         intent(in) :: t1, t0, fd
         optional   :: fd
@@ -167,39 +177,49 @@ contains
         fd_ = stdout
         if(present (fd)) fd_ = fd
 
+        std_sect_assign(1,2)
+        std_sect_assign(2,3)
+        std_sect_assign(3,1)
+        
         ! extra check
         do i = 1, Nbodies
             if (.not. associated(sections(i)%S) &
                 &.or. .not. associated(sections(i)%dS)) &
                 & error stop "Define section list before improving!"
         end do
-        x = x0(1:size(x0)-1)
+        
+        associate(wsp=>x0(1:size(x0)-1), wsp_id=>x0_ideal(1:size(x0)-1))
+        
 !         x0(2:size(x0)-1) = broydenitsolve(intersection_diff, x, 100,fd_)
-        x0(1:size(x0)-1) = conjgraddesc(intersection_diff_scalar,x,1000,fd_)
-!         write(*,*) broydenitsolve(f_2_sq, real((/1,1/),mpc), 100, stdout)
+        wsp = conjgraddesc(intersection_diff_scalar,wsp,500)
+!         call plot_RnR1_section(intersection_diff_scalar, &
+!             &wsp_id, (wsp - wsp_id),&
+!             &0.0001_mpc, N=30, fd=stdout)
 !         k = 1; delta = 0
 !         do i = -100, 100,1
-!             delta = sqrt(sqrt(eps))*i
+!             delta = sqrt(eps)*i
 !             write(*,'(f11.8)', advance='no') delta
 !             do k = 1, size(x)
 !                 x = x0(1:size(x))
 !                 x(k) = x0(k) + delta
-!                 write(*,'(f14.8)', advance='no') intersection_diff_scalar(x)
+!                 write(*,'(f14.8)', advance='no') f(x)
 !             end do
 !             write(*,*)
 !         end do
         
 !         x = x0(1:size(x))
-!         do i = -100, 100,5
-!             d1 = sqrt(sqrt(eps))*i
+!         cell = sqrt(sqrt(eps))/10.0_mpc
+!         do i = -100, 100,1
+!             d1 = cell*i
 !             x(1) = x0(1) + d1
-!             do j = -100,100,5
-!                 d2 = sqrt(sqrt(eps))*j
+!             do j = -100,100,1
+!                 d2 = cell*j
 !                 x(2) = x0(2) + d2
-!                 write(*,*) x(1), x(2), intersection_diff_scalar(x)
+!                 write(*,*) x(1), x(2), f(x)
 !             end do
 !             write(*,*)
 !         end do
+        end associate
         
     contains 
         function intersection_diff(xp) result(x)
@@ -240,55 +260,34 @@ contains
             real(mpc), intent(in), dimension(:) :: xp
             real(mpc) :: dev
             real(mpc) :: temp(6, size(x0))
-            integer :: i, cd, retstat, b = 1
+            integer :: i, cd, retstat, b = 1, dir, sectn
             cd = size(x0)
             call integ%set_inicond((/xp,t0/), t0)
             call integ%crewind()
+              
+            do i = 1, 2*Nbodies
+                sectn = mod(i-1, Nbodies) + 1
+                current%S => sections(sectn)%S
+                current%dS => sections(sectn)%dS
+                
+                call shift_to_intersect(integ, t1, retstat)
+                temp(i, :) = integ%val()
                
-            current%S => sections(2)%S
-            current%dS => sections(2)%dS
-            call shift_to_intersect(integ, t1, retstat)
-            temp(1, :) = integ%val()
-            
-            current%S => sections(3)%S
-            current%dS => sections(3)%dS
-            call shift_to_intersect(integ, t1, retstat)
-            temp(2, :) = integ%val()
-            temp(2, 1:cd-1) = cyclic_shift_bodies(temp(2, 1:cd-1), 1)
-            
-            current%S => sections(1)%S
-            current%dS => sections(1)%dS
-            call shift_to_intersect(integ, t1, retstat)
-            temp(3, :) = integ%val()
-            temp(3, 1:cd-1) = cyclic_shift_bodies(temp(3, 1:cd-1), -1)
-            
-            current%S => sections(2)%S
-            current%dS => sections(2)%dS
-            call shift_to_intersect(integ, t1, retstat)
-            temp(4, :) = integ%val()
-            
-            current%S => sections(3)%S
-            current%dS => sections(3)%dS
-            call shift_to_intersect(integ, t1, retstat)
-            temp(5, :) = integ%val()
-            temp(5, 1:cd-1) = cyclic_shift_bodies(temp(5, 1:cd-1), 1)
-            
-            current%S => sections(1)%S
-            current%dS => sections(1)%dS
-            call shift_to_intersect(integ, t1, retstat)
-            temp(6, :) = integ%val()
-            temp(6, 1:cd-1) = cyclic_shift_bodies(temp(6, 1:cd-1), -1)
-            
-            if (retstat == EXIT_FAILURE) then 
-                call loud_warn("welcome to the end of the time")
-                stop '!'
-            end if
+                dir = mod(i, Nbodies) - 1
+                temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
+                
+                if (retstat == EXIT_FAILURE) then 
+                    call loud_warn("welcome to the end of the time")
+                    stop '!'
+                end if
+            end do
 
-            dev =   norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
+            dev =  &
+            &( norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
                 & + norm2(temp(5, 1:cd-1) - temp(2, 1:cd-1))**(2)&
                 & + norm2(temp(4, 1:cd-1) - temp(1, 1:cd-1))**(2)&
                 & + norm2(temp(2, 1:cd-1) - temp(1, 1:cd-1))**(2)&
-                & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2)
+                & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2))
         end function 
         
         function test(x) result(f)

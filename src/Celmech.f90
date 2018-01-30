@@ -43,11 +43,14 @@ contains
             ! 3 -- координаты
             f(tDim/2+1:) = 0
             do i = 1, Nbodies
-                forall (j=1:Nbodies) R_cur(j,:) =  X(ci(1,i,1):ci(1,i,spcdim)) - X(ci(1,j,1):ci(1,j,spcdim))
-                R_abs = (/ (norm2(R_cur(j,:)), j=1,Nbodies) /)
+                do j=1, Nbodies
+                    R_cur(j,:) = X(ci(1,i,1):ci(1,i,spcdim)) - X(ci(1,j,1):ci(1,j,spcdim))
+                    R_abs(j) = sqrt(sum(R_cur(j,:)**2))
+                end do
 
                 do j = 1, Nbodies
-                    if (j /= i) f(ci(2,i,1):ci(2,i,spcdim)) = f(ci(2,i,1):ci(2,i,spcdim)) - m(j)*R_cur(j,:)/R_abs(j)**3 
+                    if (j /= i) f(ci(2,i,1):ci(2,i,spcdim)) &
+                        &= f(ci(2,i,1):ci(2,i,spcdim)) - m(j)*R_cur(j,:)/R_abs(j)**3 
                 end do
             end do
             f(1:tDim/2) = X(ci(2,1,1):)

@@ -102,7 +102,7 @@ contains
         write(*,*) ! blank line
     end subroutine print_array
     
-    subroutine plot_2d_array(f, a, ttl, fd)
+    subroutine plot_R2R1_func(f, a, ttl, fd)
         procedure(fRnR1) :: f
         real(mpc)       , dimension(:,:) :: a 
         integer         , optional       :: fd
@@ -137,6 +137,47 @@ contains
             write(fdc ,'(e16.7)') f(a(i,:))
         end do
         write(*,*) 
-    end subroutine plot_2d_array
+    end subroutine plot_R2R1_func
+
+    subroutine plot_RnR1_section(f, x0, dir, edsize, N, ttl, fd)
+        procedure(fRnR1) :: f
+        real(mpc)       , dimension(:)          :: x0 
+        real(mpc)       , dimension(size(x0))   :: dir 
+        real(mpc)                               :: edsize
+        integer         , optional       :: fd, N
+        character(len=*), optional       :: ttl
+        intent(in) ::  dir, x0, edsize, fd, ttl
+        
+        logical :: titlep, sizep
+        integer :: i, m, fdc, j, N_
+        real(mpc), dimension(size(x0)) :: x, edge
+        
+        fdc = stdout
+        if (present(fd)) fdc = fd
+            
+        fdc = stdout
+        if (present(fd)) fdc = fd
+        sizep = .TRUE.; titlep = .FALSE.
+        if (present(ttl)) then
+            if (ttl == '') then
+                sizep = .FALSE.; titlep = .FALSE.
+            else
+                titlep = .FALSE.
+            end if
+        end if
+
+        if (titlep) write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
+        if (titlep) write (fdc, *) repeat('-',13)
+        
+        edge = dir/norm2(dir)*edsize
+        N_ = norm2(dir)/edsize
+        if (present(N)) N_ = N
+        x = x0
+        do j = 1, N_
+                write (fdc, *) (j-1), f(x)
+                x = x + edge
+        end do
+    end subroutine plot_RnR1_section
+
 end module IO_array
 
