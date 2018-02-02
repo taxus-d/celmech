@@ -129,7 +129,7 @@ contains
             if (norm2(grad(2,:)) > 100.0_mpc) write(stderr,*) "Trouble: large grad =",&
                 &norm2(grad(2,:))
             if (i > 0) then 
-                dir = -grad(2,:) + advmul*beta(-grad(1,:), -grad(2,:),dir)*dir
+                dir = -grad(2,:) + advmul*beta(x,-grad(1,:), -grad(2,:),dir)*dir
             else
                 dir = -grad(2,:)
             endif 
@@ -158,14 +158,14 @@ contains
             end if
         end if 
     contains
-        pure function beta(dx_p,dx, s)
+        function beta(x,dx_p,dx, s)
             real(mpc), dimension(:) :: dx
-            real(mpc), dimension(size(dx)) :: dx_p, s
+            real(mpc), dimension(size(dx)) :: x, dx_p, s
             real(mpc) :: beta
+            real(mpc), parameter :: somewhat_small_const = sqrt(eps) 
             intent(in) :: dx_p, dx, s
-            if (f()) then
+            if (f(x) < somewhat_small_const) then
                 beta = betaFR(dx_p, dx, s)
-                write(*,*) 'little'
             else
                 beta = betaDY(dx_p, dx, s)
             end if

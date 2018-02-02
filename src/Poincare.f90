@@ -194,13 +194,12 @@ contains
         associate(wsp=>x0(1:size(x0)-1), wsp_id=>x0_ideal(1:size(x0)-1))
         
 !         x0(2:size(x0)-1) = broydenitsolve(intersection_diff, x, 100,fd_ )
-        skipn = 0; advanced_descent_p = .true.
+        skipn = 0; 
         do i=1,5
             write(*,*) 'conjugate gradient descent ::'
-            wsp = conjgraddesc(intersection_diff_scalar,wsp,100,retstat=mixp, advancedp=advanced_descent_p)
+            wsp = conjgraddesc(intersection_diff_scalar,wsp,100,retstat=mixp)
             if (mixp == EXIT_FAILURE) then 
                 skipn = skipn + 2
-                advanced_descent_p = .false.
 !                 write(*,*) 'inertion&friction descent simulation ::'
 !                 wsp = fricgraddesc(intersection_diff_scalar, wsp, 200)
             end if 
