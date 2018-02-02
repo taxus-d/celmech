@@ -5,22 +5,23 @@ SRCDIR  = src
 #DEPDIR  = .d
 #$(shell mkdir -p $(DEPDIR)/$(SRCDIR) >/dev/null)
 
+MACROS  = macros.f90 
 SOURCES = \
 	  Const.f90 \
-	  FuncIfaces.f90 \
-	  randomfill.f90 \
-	  IO.f90 \
-	  IO_array.f90 \
-	  Debug.f90 \
+	  utils/FuncIfaces.f90 \
+	  utils/RandomFill.f90 \
+	  io/IO.f90 \
+	  io/IO_array.f90 \
+	  utils/Debug.f90 \
 	  Celmech.f90 \
 	  Inival.f90 \
-	  Poly.f90 \
-	  Utils.f90 \
-	  LseSolvers.f90 \
-	  Deriv.f90 \
-	  NewtSolve.f90 \
-	  Minfinders.f90 \
-	  Integrators.f90 \
+	  poly/Poly.f90 \
+	  utils/Utils.f90 \
+	  solvers/LseSolvers.f90 \
+	  utils/Deriv.f90 \
+	  solvers/NewtSolve.f90 \
+	  minimizers/GradMin.f90 \
+	  integrators/Integrators.f90 \
 	  ODEsolve.f90 \
 	  Poincare.f90 \
 	  main.f90
@@ -131,7 +132,7 @@ distclean: clean
 	-$(DEL_FILE) $(TARGET)
 
 backup: distclean
-	easybackup -f $(SOURCES_RAW) Makefile -
+	easybackup -f src/$(MACROS) $(SOURCES_RAW) Makefile -
 
 dummy:
 	@echo $(OBJECTS)

@@ -23,7 +23,7 @@ program main
     call print_solution(itg_rk, t1, fd_orbo)
     
     ! reuse data from previous runs
-    x0_mod = x0_ideal
+    x0_mod = x0
 !     read(fd_x0, *) x0_mod(1:12)
 !     x0_mod(13) = t0
     close(fd_x0) 

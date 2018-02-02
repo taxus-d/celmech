@@ -7,7 +7,7 @@ module Poincare
     use Celmech
     use Inival
     use NewtSolve
-    use Minfinders
+    use GradMin
     use Integrators
     implicit none
     logical   :: weirdstep
@@ -211,7 +211,7 @@ contains
         intent(in) :: t1, t0, fd
         optional   :: fd
         integer    :: validp, mixp, skipn
-        real(mpc)  :: wsp(100, 1:size(x0)-1), weight, rsum(1:size(x0)-1), wsum
+        real(mpc)  :: wsp(1, 1:size(x0)-1), weight, rsum(1:size(x0)-1), wsum
         logical    :: advanced_descent_p
         skipn = 0
         mixp = EXIT_SUCCESS; validp = EXIT_SUCCESS
