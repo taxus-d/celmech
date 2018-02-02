@@ -1,9 +1,8 @@
 #!/usr/bin/gnuplot
 
 if (exists("type")) {
-        print type
 } else {
-        type = 'rk'
+        type = 'orbit-orig'
 }
 filen = 'data/'.type.'.dat'
 outfile = 'img/'.type.'.png'

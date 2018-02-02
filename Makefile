@@ -23,7 +23,7 @@ SOURCES = \
 	  Integrators.f90 \
 	  ODEsolve.f90 \
 	  Poincare.f90 \
-	  cauchy.f90
+	  main.f90
 SOURCES_RAW = $(addprefix $(SRCDIR)/, $(SOURCES))
 OBJECTS  = ${SOURCES_RAW:.f90=.o}
 INCPATH   = $(SRCDIR)
@@ -54,7 +54,7 @@ WARN  = -Wall \
 	-Wconversion \
 #         -Warray-temporaries
 
-PARALLEL  = #-fopenmp
+PARALLEL  = -fopenmp
 DEBUG     = -pg
 RELEASE   = -O2
 MODE      = $(RELEASE)
@@ -136,8 +136,8 @@ backup: distclean
 dummy:
 	@echo $(OBJECTS)
 view:
-	@gnuplot -e "type='rk'" viz/orbit.plt&
-	@gnuplot -e "type='rk1'" viz/orbit.plt&
+	@gnuplot -e "type='orbit-orig'" viz/orbit.plt&
+	@gnuplot -e "type='orbit-impr'" viz/orbit.plt&
 
 
 .PHONY: test clean distclean backup dummy

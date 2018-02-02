@@ -162,13 +162,13 @@ contains
             real(mpc), dimension(:) :: dx
             real(mpc), dimension(size(dx)) :: x, dx_p, s
             real(mpc) :: beta
-            real(mpc), parameter :: somewhat_small_const = sqrt(eps) 
+            real(mpc), parameter :: somewhat_small_const = sqrt(eps)/1000.0_mpc 
             intent(in) :: dx_p, dx, s
-            if (f(x) < somewhat_small_const) then
-                beta = betaFR(dx_p, dx, s)
-            else
+!             if (f(x) < somewhat_small_const) then
+!                 beta = betaFR(dx_p, dx, s)
+!             else
                 beta = betaDY(dx_p, dx, s)
-            end if
+!             end if
         end function beta
     end function conjgraddesc
     pure function betaPR(dx_p, dx, s) result(beta)

@@ -2,6 +2,7 @@
 #include "macros.f90"
 
 module Poincare
+    use omp_lib
     use Utils
     use Celmech
     use Inival
@@ -9,7 +10,8 @@ module Poincare
     use Minfinders
     use Integrators
     implicit none
-    logical :: weirdstep
+    logical   :: weirdstep
+    real(mpc) :: error_dev = -1.0_mpc
     interface
         function eq_fun(t,X) result(f)
             import :: mpc
@@ -161,6 +163,41 @@ contains
 
     end subroutine print_poincare_section
 
+    
+    subroutine init_workspace(f, x0, edge, wsp)
+        procedure (fRnR1) :: f
+        real(mpc), dimension(:), intent(in) :: x0
+        real(mpc), intent(in) :: edge
+        real(mpc), dimension(:,:), intent(out) :: wsp
+        
+        integer :: i, procp
+        i = 1
+        do while (i <= size(wsp,1))
+            call randomfill_arr(wsp(i,:))
+            wsp(i,:) = (wsp(i,:) - 0.5_mpc)*2*edge + x0
+            call check_workspace(f, wsp(i:i,:), procp)
+            if (procp == EXIT_SUCCESS) i = i + 1
+        end do
+    end subroutine init_workspace
+
+
+    subroutine check_workspace(f, wsp, rets)
+        procedure (fRnR1) :: f
+        real(mpc), dimension(:,:), intent(in) :: wsp
+        integer, intent(out) :: rets
+        real(mpc), dimension(size(wsp,2)) :: res
+        integer :: i
+        rets = EXIT_SUCCESS
+        do i = 1, size(wsp, 1)
+            res = f(wsp(i,:))
+            if (norm2(res - error_dev) < eps) then
+                rets = EXIT_FAILURE
+                exit
+            end if
+        end do
+    end subroutine check_workspace
+    
+
     ! smart macros, where are you..(
 #define std_sect_assign(i,j) \
     sections(i)%S => CONCAT(sect_x_,j)_body; \
@@ -173,10 +210,11 @@ contains
         integer    :: i, N, fd, fd_, rets, k, j
         intent(in) :: t1, t0, fd
         optional   :: fd
-        integer    :: mixp, skipn
+        integer    :: validp, mixp, skipn
+        real(mpc)  :: wsp(100, 1:size(x0)-1), weight, rsum(1:size(x0)-1), wsum
         logical    :: advanced_descent_p
-        mixp = EXIT_SUCCESS
-        
+        skipn = 0
+        mixp = EXIT_SUCCESS; validp = EXIT_SUCCESS
         fd_ = stdout
         if(present (fd)) fd_ = fd
 
@@ -191,19 +229,42 @@ contains
                 & error stop "Define section list before improving!"
         end do
         
-        associate(wsp=>x0(1:size(x0)-1), wsp_id=>x0_ideal(1:size(x0)-1))
+        associate(wsp_id=>x0_ideal(1:size(x0)-1))
         
-!         x0(2:size(x0)-1) = broydenitsolve(intersection_diff, x, 100,fd_ )
-        skipn = 0; 
-        do i=1,5
-            write(*,*) 'conjugate gradient descent ::'
-            wsp = conjgraddesc(intersection_diff_scalar,wsp,100,retstat=mixp)
-            if (mixp == EXIT_FAILURE) then 
-                skipn = skipn + 2
-!                 write(*,*) 'inertion&friction descent simulation ::'
-!                 wsp = fricgraddesc(intersection_diff_scalar, wsp, 200)
-            end if 
+        call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.01_mpc, wsp)
+        write(*,*) "-- created random workspace"
+        call check_workspace(intersection_diff_scalar, wsp, validp)
+        if (validp == EXIT_FAILURE) then
+            error stop " !- invalid workspace"
+        end if
+        write(*,*) "-- check successful"
+        rsum = 0.0_mpc; wsum = 0.0_mpc
+        
+!         $omp parallel shared(wsp, i) default(private)
+!         $omp do schedule(dynamic)
+        do i = 1, size(wsp,1)
+            skipn = 0
+            do j = 1,5
+                write(*,*) 'conjugate gradient descent :: ', ' # ', j
+                wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),20,retstat=mixp)
+                if (mixp == EXIT_FAILURE) then 
+                    skipn = skipn + 2
+!                    write(*,*) 'inertion&friction descent simulation ::'
+!                    wsp = fricgraddesc(intersection_diff_scalar, wsp, 200)
+                end if 
+            end do
+            write(*,*) 
         end do
+        ! $omp end do
+        ! $omp end parallel
+        do j=1,size(wsp,1) 
+            weight = 1.0_mpc / intersection_diff_scalar(wsp(j,:))
+            call prarr (wsp(j,:))
+            write(*,*) 'weight  ::', weight, 1/weight
+            rsum = rsum + wsp(j,:) * weight
+            wsum = wsum + weight
+        end do
+        x0(1:size(x0)-1) = rsum / wsum
 !         call plot_RnR1_section(intersection_diff_scalar, &
 !             &wsp_id, (wsp - wsp_id),&
 !             &0.0001_mpc, N=30, fd=stdout)
@@ -234,6 +295,7 @@ contains
         end associate
         
     contains 
+#if 0
         function intersection_diff(xp) result(x)
             real(mpc), intent(in), dimension(:) :: xp
             real(mpc), dimension(size(xp)) :: x
@@ -267,7 +329,8 @@ contains
             end if
             x = temp(3, b:cd-1) + temp(2, b:cd-1) - temp(1, b:cd-1)
         end function 
-
+#endif
+        ! as a special value, return -1
         function intersection_diff_scalar(xp) result(dev)
             real(mpc), intent(in), dimension(:) :: xp
             real(mpc) :: dev
@@ -276,43 +339,46 @@ contains
             cd = size(x0)
             call integ%set_inicond((/xp,t0/), t0)
             call integ%crewind()
-            
-            do i = 0, skipn
+            retstat = EXIT_SUCCESS 
+            shift: do i = 1, skipn
                 current%S => sections(1)%S
                 current%dS => sections(1)%dS
                 call shift_to_intersect(integ, t1, retstat)
                 call integ%step()
                 call shift_to_intersect(integ, t1, retstat)
                 if (retstat == EXIT_FAILURE) then 
-                    call loud_warn("welcome to the end of the time")
+                    exit shift! to avoid useless computations
                 end if
-            end do
-            do i = 1, 2*Nbodies
-                sectn = mod(i-1, Nbodies) + 1
-                current%S => sections(sectn)%S
-                current%dS => sections(sectn)%dS
-                
-                call shift_to_intersect(integ, t1, retstat)
-                temp(i, :) = integ%val()
-               
-                dir = mod(i, Nbodies) - 1
-                temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
-                
-                if (retstat == EXIT_FAILURE) then 
-                    call loud_warn("welcome to the end of the time")
-                    stop '!'
-                end if
-            end do
-
-            dev =  &
-            &log(1.0_mpc &
+            end do shift
+            if (retstat == EXIT_SUCCESS) then
+                comp: do i = 1, 2*Nbodies
+                    sectn = mod(i-1, Nbodies) + 1
+                    current%S => sections(sectn)%S
+                    current%dS => sections(sectn)%dS
+                    
+                    call shift_to_intersect(integ, t1, retstat)
+                    temp(i, :) = integ%val()
+                   
+                    dir = mod(i, Nbodies) - 1
+                    temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
+                    
+                    if (retstat == EXIT_FAILURE) then 
+                        exit comp
+                    end if
+                end do comp
+            end if
+            if (retstat == EXIT_SUCCESS) then 
+                dev =  &
+                &log(1.0_mpc &
                 & + norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
                 & + norm2(temp(5, 1:cd-1) - temp(2, 1:cd-1))**(2)&
                 & + norm2(temp(4, 1:cd-1) - temp(1, 1:cd-1))**(2)&
                 & + norm2(temp(2, 1:cd-1) - temp(1, 1:cd-1))**(2)&
                 & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2))
+            else
+                dev = error_dev
+            endif
         end function 
-        
         function test(x) result(f)
             real(mpc) , intent(in) :: x(:)
             real(mpc) :: f
