@@ -136,7 +136,9 @@ backup: distclean
 dummy:
 	@echo $(OBJECTS)
 view:
-	@gnuplot viz/orbit.plt&
+	@gnuplot -e "type='rk'" viz/orbit.plt&
+	@gnuplot -e "type='rk1'" viz/orbit.plt&
+
 
 .PHONY: test clean distclean backup dummy
 .PRECIOUS: %.d

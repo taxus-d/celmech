@@ -173,6 +173,9 @@ contains
         integer    :: i, N, fd, fd_, rets, k, j
         intent(in) :: t1, t0, fd
         optional   :: fd
+        integer    :: mixp, skipn
+        logical    :: advanced_descent_p
+        mixp = EXIT_SUCCESS
         
         fd_ = stdout
         if(present (fd)) fd_ = fd
@@ -190,8 +193,18 @@ contains
         
         associate(wsp=>x0(1:size(x0)-1), wsp_id=>x0_ideal(1:size(x0)-1))
         
-!         x0(2:size(x0)-1) = broydenitsolve(intersection_diff, x, 100,fd_)
-        wsp = conjgraddesc(intersection_diff_scalar,wsp,500)
+!         x0(2:size(x0)-1) = broydenitsolve(intersection_diff, x, 100,fd_ )
+        skipn = 0; advanced_descent_p = .true.
+        do i=1,5
+            write(*,*) 'conjugate gradient descent ::'
+            wsp = conjgraddesc(intersection_diff_scalar,wsp,100,retstat=mixp, advancedp=advanced_descent_p)
+            if (mixp == EXIT_FAILURE) then 
+                skipn = skipn + 2
+                advanced_descent_p = .false.
+!                 write(*,*) 'inertion&friction descent simulation ::'
+!                 wsp = fricgraddesc(intersection_diff_scalar, wsp, 200)
+            end if 
+        end do
 !         call plot_RnR1_section(intersection_diff_scalar, &
 !             &wsp_id, (wsp - wsp_id),&
 !             &0.0001_mpc, N=30, fd=stdout)
@@ -264,7 +277,17 @@ contains
             cd = size(x0)
             call integ%set_inicond((/xp,t0/), t0)
             call integ%crewind()
-              
+            
+            do i = 0, skipn
+                current%S => sections(1)%S
+                current%dS => sections(1)%dS
+                call shift_to_intersect(integ, t1, retstat)
+                call integ%step()
+                call shift_to_intersect(integ, t1, retstat)
+                if (retstat == EXIT_FAILURE) then 
+                    call loud_warn("welcome to the end of the time")
+                end if
+            end do
             do i = 1, 2*Nbodies
                 sectn = mod(i-1, Nbodies) + 1
                 current%S => sections(sectn)%S
@@ -283,7 +306,8 @@ contains
             end do
 
             dev =  &
-            &( norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
+            &log(1.0_mpc &
+                & + norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
                 & + norm2(temp(5, 1:cd-1) - temp(2, 1:cd-1))**(2)&
                 & + norm2(temp(4, 1:cd-1) - temp(1, 1:cd-1))**(2)&
                 & + norm2(temp(2, 1:cd-1) - temp(1, 1:cd-1))**(2)&

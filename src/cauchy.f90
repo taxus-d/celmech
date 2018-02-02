@@ -40,11 +40,10 @@ program cauchy
 !     call print_poincare_section(itg_rk, t1, fd_rk)
 !     call print_poincare_section(itg_ae, t1, fd_ae)
 !     call print_poincare_section(itg_ai, t1, fd_ai)
-!     x0_mod = x0
-    read(fd_x0, *) x0_mod(1:12)
+    x0_mod = x0
+!     read(fd_x0, *) x0_mod(1:12)
+!     x0_mod(13) = t0
     close(fd_x0)
-    x0_mod(13) = t0
-        x0_mod = x0
     call prarr (x0_mod)
     call imporove_inipos(itg_rk, t0, x0_mod, t1, stdout)
     call itg_rk%set_inicond(x0_mod, t0)

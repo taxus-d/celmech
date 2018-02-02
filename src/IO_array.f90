@@ -8,7 +8,11 @@ module IO_array
         module procedure print_matrix 
         module procedure print_array
     end interface prarr
-        
+       
+    interface plot_RnR1_section
+        module procedure plot_RnR1_section_startdiredge
+        module procedure plot_RnR1_section_startend
+    end interface plot_RnR1_section
 contains
     subroutine read_mtx(a, a_fd)
         real(mpc), intent(inout), dimension(:, :) :: a
@@ -138,8 +142,7 @@ contains
         end do
         write(*,*) 
     end subroutine plot_R2R1_func
-
-    subroutine plot_RnR1_section(f, x0, dir, edsize, N, ttl, fd)
+    subroutine plot_RnR1_section_startdiredge(f, x0, dir, edsize, N, ttl, fd)
         procedure(fRnR1) :: f
         real(mpc)       , dimension(:)          :: x0 
         real(mpc)       , dimension(size(x0))   :: dir 
@@ -169,15 +172,27 @@ contains
         if (titlep) write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
         if (titlep) write (fdc, *) repeat('-',13)
         
-        edge = dir/norm2(dir)*edsize
-        N_ = norm2(dir)/edsize
+        N_ = int(edsize/norm2(dir))
         if (present(N)) N_ = N
+        edge = dir/norm2(dir)*edsize/N_
         x = x0
         do j = 1, N_
                 write (fdc, *) (j-1), f(x)
                 x = x + edge
         end do
-    end subroutine plot_RnR1_section
+    end subroutine plot_RnR1_section_startdiredge
 
+    subroutine plot_RnR1_section_startend(f, x1, x2, N, ttl, fd)
+        procedure(fRnR1) :: f
+        real(mpc)       , dimension(:)          :: x1 
+        real(mpc)       , dimension(size(x1))   :: x2 
+        integer         , optional       :: fd, N
+        character(len=*), optional       :: ttl
+        intent(in) ::  x1, x2, fd, ttl
+        
+        logical :: titlep, sizep
+        integer :: i, m, fdc, j, N_
+        call plot_RnR1_section_startdiredge(f, x1, (x2-x1)/norm2(x2-x1), norm2(x2-x1), N, ttl, fd)
+    end subroutine plot_RnR1_section_startend
 end module IO_array
 

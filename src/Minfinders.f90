@@ -7,7 +7,7 @@ module Minfinders
     implicit none
 contains
     ! breaks
-    function graddesc(f,x0,N_max,report_fd) result(root)
+    function fricgraddesc(f,x0,N_max,report_fd) result(root)
         procedure (fRnR1) :: f
         real(mpc), dimension(:) :: x0
         integer :: N_max,i, ordgrad(2)
@@ -15,25 +15,33 @@ contains
         real(mpc), dimension(size(x0)) :: root, x, xp, grad
         integer, optional :: report_fd
         real(mpc) :: mul, lambda, lambda0
+        real(mpc), dimension(size(x0)) :: shift, vel, accel 
+        real(mpc) :: frict,delta
        
+        vel = 0; shift = 0
+        frict = 0.1_mpc
         ordgrad = 0
         xp = huge(1.0_mpc)
         i = 1
         x = x0
-        lambda0 = sqrt(sqrt(eps))/2; lambda = lambda0
+        lambda0 = 100*sqrt(sqrt(eps))/2; lambda = lambda0
+        delta = 0.1_mpc
         mul = 2
-        do while (norm2(x - xp) > sqrt(eps)/10 .and. i < N_max)
+        do while (norm2(x - xp) > eps .and. i < N_max)
             if (present(report_fd)) write(report_fd, *) x
             write(*,*) '>>' ,f(x)
             grad = ngrad(f,x)
             if (norm2(grad) > 100) write(stderr,*) "Trouble: large grad =", norm2(grad)
             xp = x
 !             lambda = lambda0
-            x = x - lambda*grad
+            accel = -grad - frict*vel
+            vel   = vel   + delta*accel
+            shift = delta*vel
+            x = x + lambda*shift
             i = i + 1
         end do
         root = x
-    end function graddesc
+    end function fricgraddesc
     
     function golden_linesearch(f,a0,b0,N_max) result(root)
         procedure (fRnR1) :: f
@@ -88,60 +96,79 @@ contains
         root = (a + b)/2
 
     end function bin_linesearch
-    function conjgraddesc(f,x0,N_max,report_fd) result(root)
+    function conjgraddesc(f,x0,N_max,report_fd, retstat, advancedp) result(root)
         procedure (fRnR1) :: f
-        real(mpc), dimension(:) :: x0
-        integer :: N_max,i
-        intent(in) :: x0, N_max
-        real(mpc), dimension(size(x0)) :: root, x, xp, xn
-        real(mpc) :: dir(size(x0)), grad(2, size(x0)), x_bnd(2,size(x0))
+        real(mpc), dimension(:), intent(in) :: x0
+        integer, intent(in) :: N_max
         integer, optional :: report_fd
+        integer, optional, intent(inout) :: retstat
+        logical, optional :: advancedp
+        real(mpc), dimension(size(x0)) :: root
+        
+        real(mpc), dimension(size(x0)) :: x, xp, xn
+        real(mpc) :: dir(size(x0)), grad(2, size(x0)), x_bnd(2,size(x0))
         real(mpc) :: mul, lambda, lambda0, searchsize
-        logical :: updatep 
-        updatep = .TRUE.
+        logical :: updatep, advancedp_
+        integer :: i, advmul, penalty, penalty_limit = 5
 
+        updatep = .true.
+        advancedp_ = .true.; advmul = 1
+        if (present(advancedp)) advancedp_ = advancedp
+        if (.not. advancedp_) advmul = 0
+        penalty = 0
         xp = huge(1.0_mpc)
         i = 0
         x = x0
         lambda0 = 1; lambda = lambda0
-        mul = 1
-        searchsize = 0.001
+        mul = 1; 
+        searchsize = 0.005_mpc
         
-        do while (norm2(x - xp) > sqrt(eps)/100 .and. i < N_max)
+        do while (norm2(x - xp) > eps .and. i < N_max)
             grad(1,:) = grad(2,:)
-            grad(2,:) = ngrad(f,x)        
-            if (norm2(grad(2,:)) > 100) write(stderr,*) "Trouble: large grad =",&
+            grad(2,:) = ngrad(f,x)
+            if (norm2(grad(2,:)) > 100.0_mpc) write(stderr,*) "Trouble: large grad =",&
                 &norm2(grad(2,:))
             if (i > 0) then 
-                dir = -grad(2,:) + beta(-grad(1,:), -grad(2,:),dir)*dir
+                dir = -grad(2,:) + advmul*beta(-grad(1,:), -grad(2,:),dir)*dir
             else
                 dir = -grad(2,:)
-            endif
-            lambda = lambda * mul
-            x_bnd(1,:) = x - 1*dir/norm2(dir)*searchsize * lambda
-            x_bnd(2,:) = x + 2*dir/norm2(dir)*searchsize * lambda
-            write(*,*) dot_product(dir, (x - x0_ideal(1:size(x0_ideal)-1)))&
-            &/(norm2(dir)*norm2(x-x0_ideal(1:size(x0_ideal)-1)))
+            endif 
+            if (norm2(dir) > 1.0_mpc) dir = dir/norm2(dir)
+            x_bnd(1,:) = x - 1.0_mpc*dir*searchsize*lambda
+            x_bnd(2,:) = x + 1.5_mpc*dir*searchsize*lambda
+!             write(*,*) dot_product(dir, (x - x0_ideal(1:size(x0_ideal)-1)))&
+!             &/(norm2(dir)*norm2(x-x0_ideal(1:size(x0_ideal)-1)))
             xn = golden_linesearch(f, x_bnd(1,:), x_bnd(2,:), 100)
-!             write(*,*) norm2(xn-xp), norm2(xn - x)
-!             if (f(xn) < f(x)) then
-                xp = x
-                x = xn
-                if (present(report_fd)) write(report_fd, *) x
-                write(stderr,*) '>>' ,f(x)
-!             end if
+
+            if (f(xn) > f(x)-eps) penalty = penalty + 1
+            xp = x
+            x = xn
+            if (present(report_fd)) write(report_fd, *) x
+            write(stderr,*) '>>' ,f(x), norm2(grad(2,:))
+
             i = i + 1
+            if (penalty > penalty_limit) exit
         end do
         root = x
+        if (present(retstat)) then
+            if (penalty > penalty_limit ) then
+                retstat = EXIT_FAILURE 
+            else
+                retstat = EXIT_SUCCESS
+            end if
+        end if 
     contains
         pure function beta(dx_p,dx, s)
             real(mpc), dimension(:) :: dx
             real(mpc), dimension(size(dx)) :: dx_p, s
             real(mpc) :: beta
             intent(in) :: dx_p, dx, s
-!             beta = max(betaPR(dx_p,dx,s),0.0_mpc)
-!             beta = 0.0_mpc
-            beta = betaDY(dx_p, dx, s)
+            if (f()) then
+                beta = betaFR(dx_p, dx, s)
+                write(*,*) 'little'
+            else
+                beta = betaDY(dx_p, dx, s)
+            end if
         end function beta
     end function conjgraddesc
     pure function betaPR(dx_p, dx, s) result(beta)
