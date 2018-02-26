@@ -77,4 +77,8 @@ contains
                 e1 = e*mul 
             end function newedge
     end function mcsearch
+
+    function neldermead(f,x0,N_max,report_fd) result(root)
+        
+    end function neldermead
 end module NonGradMin

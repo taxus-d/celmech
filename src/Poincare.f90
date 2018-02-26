@@ -11,7 +11,7 @@ module Poincare
     use Integrators
     implicit none
     logical   :: weirdstep
-    real(mpc) :: error_dev = -1.0_mpc
+    real(mpc) :: error_dev = huge(1.0_mpc)
     interface
         function eq_fun(t,X) result(f)
             import :: mpc
@@ -244,9 +244,9 @@ contains
 !         $omp do schedule(dynamic)
         do i = 1, size(wsp,1)
             skipn = 0
-            do j = 1,5
+            do j = 1,1
                 write(*,*) 'conjugate gradient descent :: ', ' # ', j
-                wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),20,retstat=mixp)
+                wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),500,retstat=mixp)
                 if (mixp == EXIT_FAILURE) then 
                     skipn = skipn + 2
 !                    write(*,*) 'inertion&friction descent simulation ::'

@@ -108,9 +108,9 @@ contains
         
         real(mpc), dimension(size(x0)) :: x, xp, xn
         real(mpc) :: dir(size(x0)), grad(2, size(x0)), x_bnd(2,size(x0))
-        real(mpc) :: mul, lambda, lambda0, searchsize
+        real(mpc) :: mul, lambda, lambda0, searchsize, rms, av_factor
         logical :: updatep, advancedp_
-        integer :: i, advmul, penalty, penalty_limit = 5
+        integer :: i, advmul, penalty, penalty_limit = 100
 
         updatep = .true.
         advancedp_ = .true.; advmul = 1
@@ -120,8 +120,9 @@ contains
         xp = huge(1.0_mpc)
         i = 0
         x = x0
-        lambda0 = 1; lambda = lambda0
-        mul = 1; 
+        lambda0 = 1_mpc; lambda = lambda0
+        mul = 1
+        av_factor = 0.99_mpc! as adviced
         searchsize = 0.005_mpc
         
         do while (norm2(x - xp) > eps .and. i < N_max)
@@ -131,21 +132,23 @@ contains
                 &norm2(grad(2,:))
             if (i > 0) then 
                 dir = -grad(2,:) + advmul*beta(x,-grad(1,:), -grad(2,:),dir)*dir
+                rms = rms * av_factor + (1.0_mpc - av_factor) * norm2(x-xp)**2
             else
                 dir = -grad(2,:)
+                rms = norm2(dir)**2
             endif 
             if (norm2(dir) > 1.0_mpc) dir = dir/norm2(dir)
+            lambda = lambda0 / sqrt(rms+eps)
             x_bnd(1,:) = x - 1.0_mpc*dir*searchsize*lambda
             x_bnd(2,:) = x + 1.5_mpc*dir*searchsize*lambda
-!             write(*,*) dot_product(dir, (x - x0_ideal(1:size(x0_ideal)-1)))&
-!             &/(norm2(dir)*norm2(x-x0_ideal(1:size(x0_ideal)-1)))
+            
             xn = golden_linesearch(f, x_bnd(1,:), x_bnd(2,:), 100)
 
             if (f(xn) > f(x)-eps) penalty = penalty + 1
             xp = x
             x = xn
             if (present(report_fd)) write(report_fd, *) x
-            write(stderr,*) '>>' ,f(x), norm2(grad(2,:))
+            write(stderr,*) '>>' ,f(x), norm2(grad(2,:)), rms
 
             i = i + 1
             if (penalty > penalty_limit) exit
