@@ -10,6 +10,12 @@ contains
         real(mpc) :: a
         a = sqrt(sum(x**2))
     end function norm2
+
+    pure function zeron(n) result(z)
+        integer, intent(in) :: n
+        real(mpc), dimension(n) :: z
+        z = 0.0_mpc
+    end function
    
     function dyad_product(a,b) result(c)
         real(mpc), intent(in), dimension(:) :: a,b
