@@ -185,17 +185,33 @@ contains
         procedure (fRnR1) :: f
         real(mpc), dimension(:,:), intent(in) :: wsp
         integer, intent(out) :: rets
-        real(mpc), dimension(size(wsp,2)) :: res
+        real(mpc) :: res
         integer :: i
         rets = EXIT_SUCCESS
         do i = 1, size(wsp, 1)
             res = f(wsp(i,:))
-            if (norm2(res - error_dev) < eps) then
+            if (abs(res - error_dev) < eps) then
                 rets = EXIT_FAILURE
                 exit
             end if
         end do
     end subroutine check_workspace
+
+    function reduce_workspace(f, wsp) result(res)
+        procedure (fRnR1) :: f
+        real(mpc), dimension(:,:), intent(in) :: wsp
+        real(mpc), dimension(size(wsp,2)) :: res
+        real(mpc) :: f_res
+        integer :: i
+        res = wsp(1, :)
+        f_res = f(res)
+        do i = 2, size(wsp, 1)
+            if (f_res > f (wsp(i,:))) then
+                res = wsp(i,:)
+                f_res = f(res)
+            end if
+        end do
+    end function
     
 
     ! smart macros, where are you..(
@@ -211,7 +227,7 @@ contains
         intent(in) :: t1, t0, fd
         optional   :: fd
         integer    :: validp, mixp, skipn
-        real(mpc)  :: wsp(1, 1:size(x0)-1), weight, rsum(1:size(x0)-1), wsum
+        real(mpc)  :: wsp(10, 1:size(x0)-1)
         logical    :: advanced_descent_p
         skipn = 0
         mixp = EXIT_SUCCESS; validp = EXIT_SUCCESS
@@ -231,67 +247,28 @@ contains
         
         associate(wsp_id=>x0_ideal(1:size(x0)-1))
         
-        call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.01_mpc, wsp)
+        call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.001_mpc, wsp)
         write(*,*) "-- created random workspace"
         call check_workspace(intersection_diff_scalar, wsp, validp)
         if (validp == EXIT_FAILURE) then
             error stop " !- invalid workspace"
         end if
         write(*,*) "-- check successful"
-        rsum = 0.0_mpc; wsum = 0.0_mpc
         
-!         $omp parallel shared(wsp, i) default(private)
-!         $omp do schedule(dynamic)
+        write(*,*) "-- processing workspace"
         do i = 1, size(wsp,1)
             skipn = 0
-            do j = 1,1
-                write(*,*) 'conjugate gradient descent :: ', ' # ', j
-                wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),500,retstat=mixp)
-                if (mixp == EXIT_FAILURE) then 
-                    skipn = skipn + 2
-!                    write(*,*) 'inertion&friction descent simulation ::'
-!                    wsp = fricgraddesc(intersection_diff_scalar, wsp, 200)
-                end if 
-            end do
-            write(*,*) 
+            wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),40,retstat=mixp)
+!             wsp(i,:) = newtonhessianfree(intersection_diff_scalar, wsp(i,:), 30, report_fd=stdout)
         end do
-        ! $omp end do
-        ! $omp end parallel
-        do j=1,size(wsp,1) 
-            weight = 1.0_mpc / intersection_diff_scalar(wsp(j,:))
-            call prarr (wsp(j,:))
-            write(*,*) 'weight  ::', weight, 1/weight
-            rsum = rsum + wsp(j,:) * weight
-            wsum = wsum + weight
-        end do
-        x0(1:size(x0)-1) = rsum / wsum
+        write(*,*) "-- reducing workspace"
+        x0(1:size(x0)-1) = reduce_workspace(intersection_diff_scalar, wsp)
+        write(*,*) intersection_diff_scalar(x0(1:size(x0)-1))
 !         call plot_RnR1_section(intersection_diff_scalar, &
 !             &wsp_id, (wsp - wsp_id),&
 !             &0.0001_mpc, N=30, fd=stdout)
-!         k = 1; delta = 0
-!         do i = -100, 100,1
-!             delta = sqrt(eps)*i
-!             write(*,'(f11.8)', advance='no') delta
-!             do k = 1, size(x)
-!                 x = x0(1:size(x))
-!                 x(k) = x0(k) + delta
-!                 write(*,'(f14.8)', advance='no') f(x)
-!             end do
-!             write(*,*)
-!         end do
-        
-!         x = x0(1:size(x))
-!         cell = sqrt(sqrt(eps))/10.0_mpc
-!         do i = -100, 100,1
-!             d1 = cell*i
-!             x(1) = x0(1) + d1
-!             do j = -100,100,1
-!                 d2 = cell*j
-!                 x(2) = x0(2) + d2
-!                 write(*,*) x(1), x(2), f(x)
-!             end do
-!             write(*,*)
-!         end do
+
+!         x0(1:2) = newtonhessianfree(test, zeron(2), 30, report_fd=stdout)
         end associate
         
     contains 
@@ -369,7 +346,7 @@ contains
             end if
             if (retstat == EXIT_SUCCESS) then 
                 dev =  &
-                &log(1.0_mpc &
+                &( &
                 & + norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
                 & + norm2(temp(5, 1:cd-1) - temp(2, 1:cd-1))**(2)&
                 & + norm2(temp(4, 1:cd-1) - temp(1, 1:cd-1))**(2)&
@@ -377,12 +354,13 @@ contains
                 & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2))
             else
                 dev = error_dev
+                stop 'EOT'
             endif
         end function 
         function test(x) result(f)
             real(mpc) , intent(in) :: x(:)
             real(mpc) :: f
-            f = x(1)**2 + x(2)**2  
+            f = 10000.0_mpc*(x(1) - 1.0_mpc)**2  + 10000*(x(2)-2.0_mpc)**2  
         end function test
         function f_2_sq(x) result(y)
         real(mpc),intent(in), dimension(:) :: x

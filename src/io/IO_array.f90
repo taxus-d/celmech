@@ -53,8 +53,6 @@ contains
         fdc = stdout
         if (present(fd)) fdc = fd
         
-        fdc = stdout
-        if (present(fd)) fdc = fd
         sizep = .TRUE.; titlep = .FALSE.
         if (present(ttl)) then
             if (ttl == '') then
@@ -106,7 +104,7 @@ contains
         write(*,*) ! blank line
     end subroutine print_array
     
-    subroutine plot_R2R1_func(f, a, ttl, fd)
+    subroutine plot_R2R1_func_on_array(f, a, ttl, fd)
         procedure(fRnR1) :: f
         real(mpc)       , dimension(:,:) :: a 
         integer         , optional       :: fd
@@ -141,7 +139,7 @@ contains
             write(fdc ,'(e16.7)') f(a(i,:))
         end do
         write(*,*) 
-    end subroutine plot_R2R1_func
+    end subroutine plot_R2R1_func_on_array
     subroutine plot_RnR1_section_startdiredge(f, x0, dir, edsize, N, ttl, fd)
         procedure(fRnR1) :: f
         real(mpc)       , dimension(:)          :: x0 
@@ -151,22 +149,16 @@ contains
         character(len=*), optional       :: ttl
         intent(in) ::  dir, x0, edsize, fd, ttl
         
-        logical :: titlep, sizep
+        logical :: titlep
         integer :: i, m, fdc, j, N_
         real(mpc), dimension(size(x0)) :: x, edge
         
         fdc = stdout
         if (present(fd)) fdc = fd
             
-        fdc = stdout
-        if (present(fd)) fdc = fd
-        sizep = .TRUE.; titlep = .FALSE.
+        titlep = .FALSE.
         if (present(ttl)) then
-            if (ttl == '') then
-                sizep = .FALSE.; titlep = .FALSE.
-            else
-                titlep = .FALSE.
-            end if
+            titlep = .TRUE.
         end if
 
         if (titlep) write(fdc,'(t4,a1,a,a1)') '[',ttl,']' 
@@ -177,8 +169,8 @@ contains
         edge = dir/norm2(dir)*edsize/N_
         x = x0
         do j = 1, N_
-                write (fdc, *) (j-1), f(x)
-                x = x + edge
+            write (fdc, *) (j-1), f(x)
+            x = x + edge
         end do
     end subroutine plot_RnR1_section_startdiredge
 
@@ -192,7 +184,72 @@ contains
         
         logical :: titlep, sizep
         integer :: i, m, fdc, j, N_
+
+        real(mpc) :: dir(size(x1)), edgesize
+
+        edgesize = sqrt(sum((x2-x1)**2))
+        dir = (x2-x1)/edgesize
+
         call plot_RnR1_section_startdiredge(f, x1, (x2-x1)/norm2(x2-x1), norm2(x2-x1), N, ttl, fd)
     end subroutine plot_RnR1_section_startend
+
+    subroutine plot_coordinate_sections(f,x0,offset,Npoints,fd)
+        procedure(fRnR1) :: f
+        integer, optional :: fd
+        integer :: Npoints
+        real(mpc), dimension (:) :: x0
+        real(mpc) :: offset
+        intent(in) :: Npoints, fd, offset, x0
+        
+        real(mpc) :: x(size(x0)), delta
+        integer :: i, k, fdc
+        
+        delta = offset / Npoints
+        
+        fdc = stdout
+        if (present(fd)) fdc = fd
+        
+        do i = -Npoints/2, Npoints/2,1
+            write(fdc,'(f11.8)', advance='no') delta*i
+            do k = 1, size(x0)
+                x = x0
+                x(k) = x0(k) + delta*i
+                write(fdc,'(f14.8)', advance='no') f(x)
+            end do
+            write(fdc,*)
+        end do
+    end subroutine plot_coordinate_sections
+
+    subroutine plot_selected_2D(f, x0, indices, offset, resolution, fd)
+        procedure(fRnR1) :: f
+        integer, optional  :: fd, indices(2)
+        real(mpc), dimension (:) :: x0
+        real(mpc) :: offset, resolution
+        intent(in) ::  fd, offset, x0, resolution, indices
+        
+        real(mpc) :: x(size(x0)), delta, d1, d2
+        integer :: i,j, fdc, Npoints, ind(2)
+        
+        delta = resolution
+        Npoints = int(offset / delta)
+        
+        fdc = stdout
+        if (present(fd)) fdc = fd
+
+        ind = (/1,2/)
+        if (present(indices)) ind = indices
+        
+        x = x0
+        do i = -Npoints/2, Npoints/2, 1
+            d1 = delta*i
+            x(ind(1)) = x0(ind(1)) + d1
+            do j = -Npoints/2, Npoints/2, 1
+                d2 = delta*j
+                x(ind(2)) = x0(ind(2)) + d2
+                write(fdc,*) x(ind(1)), x(ind(2)), f(x)
+            end do
+            write(fdc,*)
+        end do
+    end subroutine plot_selected_2D
 end module IO_array
 
