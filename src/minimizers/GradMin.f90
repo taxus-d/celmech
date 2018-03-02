@@ -108,9 +108,11 @@ contains
         
         real(mpc), dimension(size(x0)) :: x, xp, xn
         real(mpc) :: dir(size(x0)), grad(2, size(x0)), x_bnd(2,size(x0))
-        real(mpc) :: mul, lambda, lambda0, searchsize, rms, av_factor
+        real(mpc) :: mul, lambda, lambda0, searchsize, searchsize0, rms, av_factor
         logical :: updatep, advancedp_
-        integer :: i, advmul, penalty, penalty_limit = 100
+        integer :: i, advmul, penalty, penalty_limit = 5
+        
+        real(mpc) :: ls_ratio
 
         updatep = .true.
         advancedp_ = .true.; advmul = 1
@@ -122,8 +124,7 @@ contains
         x = x0
         lambda0 = 1_mpc; lambda = lambda0
         mul = 1
-        av_factor = 0.99_mpc! as adviced
-        searchsize = 0.005_mpc
+        searchsize0 = 0.005_mpc; searchsize=searchsize0
         
         do while (norm2(x - xp) > eps .and. i < N_max)
             grad(1,:) = grad(2,:)
@@ -132,26 +133,26 @@ contains
                 &norm2(grad(2,:))
             if (i > 0) then 
                 dir = -grad(2,:) + advmul*beta(x,-grad(1,:), -grad(2,:),dir)*dir
-                rms = rms * av_factor + (1.0_mpc - av_factor) * norm2(x-xp)**2
             else
                 dir = -grad(2,:)
                 rms = norm2(dir)**2
             endif 
             if (norm2(dir) > 1.0_mpc) dir = dir/norm2(dir)
-            lambda = lambda0 / sqrt(rms+eps)
+            lambda = lambda0
             x_bnd(1,:) = x - 1.0_mpc*dir*searchsize*lambda
             x_bnd(2,:) = x + 1.5_mpc*dir*searchsize*lambda
             
             xn = golden_linesearch(f, x_bnd(1,:), x_bnd(2,:), 100)
-
-            if (f(xn) > f(x)-eps) penalty = penalty + 1
+            ls_ratio = norm2(xn - x_bnd(1,:))/norm2(x_bnd(2,:) - x_bnd(1,:))
+            if (abs(f(xn)) > abs(f(x))-eps) penalty = penalty + 1
             xp = x
             x = xn
+!             searchsize = searchsize0
             if (present(report_fd)) write(report_fd, *) x
-            write(stderr,*) '>>' ,f(x), norm2(grad(2,:)), rms
+            write(stderr,*) '>>' ,f(x), norm2(grad(2,:)), ls_ratio, searchsize, penalty
 
             i = i + 1
-            if (penalty > penalty_limit) exit
+            if (penalty >= penalty_limit) exit
         end do
         root = x
         if (present(retstat)) then
@@ -204,6 +205,97 @@ contains
         beta = -dot_product(dx, dx)/dot_product(s,dx - dx_p)
     end function
 
+    ! x^TAx - b^Tx + c
+    ! Axmult -- function (x) -> A*x
+    function quad_conjgraddesc(Axmult, b, x0, N_max) result (root) 
+        procedure (fRnRn) :: Axmult
+        real(mpc), dimension(:), intent(in) :: b
+        real(mpc), dimension(:), intent(in) :: x0
+        integer, intent(in), optional :: N_max
+        real(mpc), dimension(size(x0)) :: root
 
+        integer :: N_max_, i
+        real(mpc) , dimension(size(x0)) :: x, dir, mdir, residue, oldresidue
+        real(mpc) :: alpha, beta
+
+        ! N (dimension of space) steps should be sufficient
+        N_max_ = size(x0)
+        if (present(N_max)) N_max_ = N_max
+        
+        i = 0
+        x = x0
+        residue = b - Axmult(x0)
+        dir = residue
+        
+        do while (i < N_max_ .and. norm2(residue) > eps)
+            mdir = Axmult(dir) ! cached
+!             call prarr(joinarr_sbs(dir, mdir))
+            ! computed line search
+            alpha      = -dot_product(residue, residue) / dot_product(dir, mdir)
+            x          =  x + alpha * dir
+            oldresidue =  residue
+            residue    =  residue - alpha * mdir
+            beta       =  dot_product(residue, residue) / dot_product(oldresidue, oldresidue)
+            dir        =  residue + beta * dir
+            i = i + 1
+        end do
+        root = x
+    end function quad_conjgraddesc 
     
+    function newtonhessianfree(f,x0,N_max,report_fd, retstat) result(root)
+        procedure (fRnR1) :: f
+        real(mpc), dimension(:), intent(in) :: x0
+        integer, intent(in) :: N_max
+        integer, optional :: report_fd
+        integer, optional, intent(inout) :: retstat
+        real(mpc), dimension(size(x0)) :: root, nzero
+     
+        real(mpc) :: point_value, point_grad(size(x0)), point_hess(size(x0), size(x0))
+     
+        real(mpc), dimension(size(x0)) :: x, xp, xn
+        integer i
+
+        xp = huge(1.0_mpc)
+        i = 0
+        x = x0
+        nzero = 0.01!0
+     
+        do while (norm2(x - xp) > eps .and. i < 1)
+            point_value = f(x)
+            point_grad  = ngrad(f,x)
+            point_hess  = hess_mtx(f,x)
+            call prarr(point_hess)
+!             xn = x+quad_conjgraddesc(hess_mmult, point_grad, nzero)
+            xn = x + conjgraddesc(local_quad_approx, nzero, 100)
+            xp = x
+            x = xn
+            if (present(report_fd)) write(report_fd, *) x
+            write(stderr,*) '>>' ,f(x)
+            i = i + 1
+        end do
+        root = x
+        contains
+            function ngrad_f(x) result (grad)
+                real(mpc), intent(in), dimension (:) :: x
+                real(mpc), dimension(size(x0)) :: grad
+                grad =  ngrad(f,x)
+            end function
+
+            function hess_mmult(dx) result(Hdx)
+                real(mpc), dimension(:), intent(in) :: dx
+                real(mpc), dimension(size(dx)) :: Hdx
+                Hdx = dir_deriv(ngrad_f, x, dx)
+!                 write(*,*) ":dx:", dx
+!                 write(*,*) ":∇f(x):", point_grad
+!                 write(*,*) ":∇f(x+dx):", ngrad(f,x+dx*opt_shiftsize(x))
+!                 write(*,*) ":res:", Hdx
+            end function hess_mmult
+
+            function local_quad_approx(dx) result(q)
+                real(mpc), dimension(:), intent(in) :: dx
+                real(mpc) :: q
+!                 q = point_value + dot_product(point_grad,dx) +
+                q = dot_product(dx, matmul(point_hess, dx))/2.0_mpc 
+            end function local_quad_approx
+    end function newtonhessianfree
 end module GradMin
