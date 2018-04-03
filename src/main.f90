@@ -4,6 +4,7 @@ program main
     use Poincare
     use Utils
     use IO_array
+    use ShapeTransform
     implicit none
 
     integer   :: fd_orbi = 10, fd_orbo = 11, fd_orbd = 12, fd_x0 = 13
@@ -35,13 +36,13 @@ program main
 !
     call itg_rk%set_inicond(x0_mod, t0)
     call itg_rk%crewind()
-    call print_solution(itg_rk, 100*Period, fd_orbi)
+    call print_solution(itg_rk, 100*Period, fd_orbi, transf=shapecoords)
     open(fd_x0, file="data/x0.dat", action="write")
     write(fd_x0, *) x0_mod
     
     call itg_rk%set_inicond(x0_ideal, t0)
     call itg_rk%crewind()
-    call print_solution(itg_rk, 100*Period, fd_orbd)
+    call print_solution(itg_rk, 10*Period, fd_orbd, transf=shapecoords)
     
     open(fd_x0, file="data/x0.dat", action="write")
     close(fd_orbo); close(fd_orbi); close(fd_orbd)

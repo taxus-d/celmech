@@ -1,5 +1,6 @@
 module FuncIfaces
     use Const
+    implicit none
     interface
 
         ! Sample functions for solvers
@@ -20,5 +21,11 @@ module FuncIfaces
             real(mpc), intent(in), dimension(:) :: x
             real(mpc) ::y
         end function 
+
+        function genericTransform(x) result (x1)
+            import mpc
+            real(mpc), intent(in), dimension(:) :: x
+            real(mpc), dimension(size(x)) :: x1
+        end function genericTransform 
     end interface 
 end module FuncIfaces

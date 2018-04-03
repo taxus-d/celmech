@@ -227,7 +227,7 @@ contains
         intent(in) :: t1, t0, fd
         optional   :: fd
         integer    :: validp, mixp, skipn
-        real(mpc)  :: wsp(10, 1:size(x0)-1)
+        real(mpc)  :: wsp(1, 1:size(x0)-1)
         logical    :: advanced_descent_p
         skipn = 0
         mixp = EXIT_SUCCESS; validp = EXIT_SUCCESS
@@ -247,7 +247,7 @@ contains
         
         associate(wsp_id=>x0_ideal(1:size(x0)-1))
         
-        call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.001_mpc, wsp)
+        call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.000_mpc, wsp)
         write(*,*) "-- created random workspace"
         call check_workspace(intersection_diff_scalar, wsp, validp)
         if (validp == EXIT_FAILURE) then
