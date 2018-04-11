@@ -10,7 +10,7 @@ module ODEsolve
             integer  , intent(in), optional :: fd
             procedure(genericTransform), optional :: transf
 
-            real(mpc) :: cache(integ%ord, integ%dimen), v(integ%dimen)
+            real(mpc) :: cache(integ%ord, integ%dimen), v(integ%dimen), v1(integ%dimen), t
             integer :: i,N, fd_
 
             fd_ = stdout
@@ -21,14 +21,17 @@ module ODEsolve
             do i = 1, integ%cache_size-1
 
                 v = cache(i,:)
-                if (present(transf)) v(1:Nbodies*spcdim) = transf(v(1:Nbodies*spcdim))
+                if (present(transf)) v(1:tDim) = transf(v(1:tDim))
                 write(fd,*) integ%t0 + (i-1)*integ%h, v
             end do
             do i = integ%cache_size-1, N-1
-            v = integ%val()
-                if (present(transf)) v(1:Nbodies*spcdim) = transf(v(1:Nbodies*spcdim))
+                v = integ%val()
+                if (present(transf)) v(1:tDim) = transf(v(1:tDim))
                 write(fd,*) integ%time(), v
+!                 t = integ%time()
                 call integ%step()
+!                 v1 = integ%val(); v1(1:tDim) = transf(v1(1:tDim)) - v(1:tDim)
+!                 write(*,*) v1(1:tDim)/(integ%time() - t)
             end do
         end subroutine
 end module ODEsolve

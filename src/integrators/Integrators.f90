@@ -237,6 +237,7 @@ contains
             self%fc(j,:) = self%f(self%t, self%Xc(n-1-j, :))
             self%t = self%t - self%h
         end do
+        self%t = self%t0 + self%h*(n-1)
         end associate
     end subroutine ex_adams_crewind
 
@@ -265,7 +266,6 @@ contains
         call self%set_inicond(x0, t0)
         call self%crewind()
         
-        self%t = self%t0 + self%h*(n-1)
         end associate
         contains
             function A(n,j)
@@ -357,6 +357,7 @@ contains
         do j=-1, n-2
             self%fc(j,:) = self%f(self%t0+self%h*(n-2-j), self%Xc(n-2-j, :))
         end do
+        ! здесь время не перематывается, оно уже правильное
         end associate
     end subroutine im_adams_crewind
     function init_im_adams(f, x0, t0, ord, step) result(self)

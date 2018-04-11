@@ -14,6 +14,7 @@ SOURCES = \
 	  io/IO_array.f90 \
 	  utils/Debug.f90 \
 	  Celmech.f90 \
+	  ShapeTransform.f90 \
 	  Inival.f90 \
 	  poly/Poly.f90 \
 	  utils/Utils.f90 \
@@ -23,7 +24,6 @@ SOURCES = \
 	  minimizers/GradMin.f90 \
 	  integrators/Integrators.f90 \
 	  ODEsolve.f90 \
-	  ShapeTransform.f90 \
 	  Poincare.f90 \
 	  main.f90
 SOURCES_RAW = $(addprefix $(SRCDIR)/, $(SOURCES))

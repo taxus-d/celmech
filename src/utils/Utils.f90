@@ -22,6 +22,33 @@ contains
         real(mpc), dimension(size(a),size(b)) :: c
         c = spread(a,dim=2,ncopies=size(b)) * spread(b,dim=1,ncopies=size(a)) 
     end function dyad_product
+    
+   
+    pure function symplprod(a,b) result(c)
+        real(mpc), intent(in), dimension(:) :: a
+        real(mpc), intent(in), dimension(size(a)) :: b
+        real(mpc), dimension(size(a)) :: c
+        integer :: i,j,k,n
+        n = size(a)
+        c = 0
+        do i = 1, n
+            do j = 1, n
+                do k = 1, n
+                    c(i) = c(i) + asimeps(i,j,k)*a(j)*b(k)
+                end do
+            end do
+        end do
+    contains
+        ! вроде должно работать
+        pure function asimeps(i,j,k) result(e)
+            integer, intent(in) :: i,j,k
+            integer :: e
+            e = (k-j)*(j-i)*(k-i)
+            e = e/abs(e)
+        end function asimeps
+    end function
+    
+    
     subroutine reverse_cols(a)
         real(mpc), dimension(:, :), intent(inout) :: a 
 !         real(mpc), dimension(size(a,1), size(a, 2)) :: a1

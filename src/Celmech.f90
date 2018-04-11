@@ -4,8 +4,21 @@ module Celmech
     implicit none
     integer, parameter :: spcdim=2, Nbodies = 3
     integer, parameter :: tDim = 2*spcdim*Nbodies
+    !                                                   rotations + baricentric
+    integer, parameter :: shapespDim = spcdim * Nbodies - 1       - spcdim
     real(mpc), parameter :: m(Nbodies) = 1.0_mpc
-    
+!     real(mpc), parameter, dimension(3) :: c = (/&
+!         &sqrt((m(2)*m(3))**3 /(m(2) + m(3))),&
+!         &sqrt((m(1)*m(3))**3 /(m(1) + m(3))),&
+!         &sqrt((m(2)*m(1))**3 /(m(2) + m(1))) &
+!     &/)
+    real(mpc), parameter, dimension(3) :: c = 1.0/sqrt(2.0)
+
+    real(mpc), dimension(3,3) :: b  = reshape((/&
+        &0.5_mpc, -sqrt(3.0_mpc)/2.0_mpc, 0.0_mpc, & !23
+        &0.5_mpc, +sqrt(3.0_mpc)/2.0_mpc, 0.0_mpc,  & !31
+        &-1.0_mpc, 0.0_mpc, 0.0_mpc           & !12
+        /),(/ 3,3 /))
 contains 
         function motion_eq(tt,X) result(f)
             real(mpc), intent(in) :: tt
@@ -53,7 +66,7 @@ contains
                         &= f(ci(2,i,1):ci(2,i,spcdim)) - m(j)*R_cur(j,:)/R_abs(j)**3 
                 end do
             end do
-            f(1:tDim/2) = X(ci(2,1,1):)
+            f(1:tDim/2) = X(ci(2,1,1):tDim)
         contains
             pure function ci(half,body,coord) result(i)
                 integer, intent(in) :: half, body, coord
@@ -81,4 +94,44 @@ contains
                 i =  (half-1)*tDim/2 + (body-1)*spcdim + (coord-1) + 1
             end function ci
         end function cyclic_shift_bodies
+
+
+        function shape_motion_eq(t,WdW) result(DWdW)
+            real(mpc), dimension(:),intent(in) :: WdW
+            real(mpc), dimension(size(WdW))    :: DWdW
+            real(mpc),intent(in) :: t
+            
+            real(mpc), dimension(shapespDim) :: w, dw, d
+            real(mpc) :: I, P2, dI2
+            integer :: k
+            
+            w  = WdW(1:shapespDim)
+            dw = WdW(shapespDim+1:shapespDim*2)
+            
+            ! больше 3 всё равно не имеет смысла пока что
+            d  = sqrt((/ &
+                &norm2(w) - dot_product(w,b(:,1)),&
+                &norm2(w) - dot_product(w,b(:,2)),&
+                &norm2(w) - dot_product(w,b(:,3))&
+            &/))
+            d = 2*d**3 
+            I  = 2.0_mpc*norm2(w)
+            P2 = norm2(dw)**2
+            dI2= dot_product(w,dw)*8.0_mpc
+            
+            DWdW(1:shapespDim) = dw
+            do k = 1, shapespDim
+                DWdW(shapespDim + k) = -dot_product(c/d, (2.0_mpc*w(k) - I*b(k,:)))&
+                    & - 2.0_mpc*P2*w(k)/I**2 + dw(k)*dI2/(2.0_mpc*I**2)  
+            end do
+!             if (norm2(DWdW) > 1e2) stop '!'
+!             write(*,*) DWdW
+
+        contains
+            pure function ci(half,body,coord) result(i)
+                integer, intent(in) :: half, body, coord
+                integer :: i
+                i =  (half-1)*shapespDim + (body-1)*spcdim + (coord-1) + 1
+            end function ci
+        end function shape_motion_eq
 end module Celmech

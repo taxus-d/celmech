@@ -39,7 +39,7 @@ contains
     pure function sect_x_1_body(X) result (S)
         real(mpc), dimension(:),intent(in) :: X
         real(mpc) :: S
-        S = X(1) - 0.3
+        S = X(1) - 0.1
     end function
     
     
@@ -55,7 +55,7 @@ contains
     pure function sect_x_2_body(X) result (S)
         real(mpc), dimension(:),intent(in) :: X
         real(mpc) :: S
-        S = X(3) - 0.3
+        S = X(3) - 0.1
     end function
     
     
@@ -71,7 +71,7 @@ contains
     pure function sect_x_3_body(X) result (S)
         real(mpc), dimension(:),intent(in) :: X
         real(mpc) :: S
-        S = X(5) - 0.3
+        S = X(5) - 0.1
     end function
     
     

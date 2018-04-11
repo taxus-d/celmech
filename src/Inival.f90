@@ -1,9 +1,10 @@
 module Inival
     use Const
     use Celmech
+    use ShapeTransform
     real(kind=mpc),parameter :: t0=0.00_mpc   
     real(mpc), parameter :: Period = 6.326_mpc;
-    real(kind=mpc),parameter :: t1=20*Period          ! Конец интервала интегрирования (начало=0)
+    real(kind=mpc),parameter :: t1=1.1*Period          ! Конец интервала интегрирования (начало=0)
     integer,parameter :: ad_ord=6                 ! Порядок для методов Адамса
     integer,parameter :: D = tDim+1
     real(kind=mpc),parameter :: h=0.01_mpc           ! Шаг интегрирования
