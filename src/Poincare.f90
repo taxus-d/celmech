@@ -125,20 +125,6 @@ contains
         dS(3) = 1.0_mpc
     end function
 
-    ! a workaround to avoid explicit section pointer passing
-    function poincare_section_eq(tt,X) result(f)
-        real(mpc), intent(in) :: tt
-        real(mpc), dimension(:), intent(in) :: X
-        real(mpc), dimension(size(X)) :: f
-        real(mpc) :: H
-        
-        f(1:tDim) = fast_motion_eq(tt, X(1:tDim))
-        f(tDim+1) = 1
-        H = 1
-        if (weirdstep) H=dot_product(current%dS(X(1:tDim)),f(1:tDim))
-        f = f/H
-    end function
-    
 
     subroutine shift_to_intersect(integ, t1, retstat, fd)
         class(Integrator), intent(inout) :: integ
@@ -281,9 +267,9 @@ contains
         wspsize = 1
         cycleshiftp = .FALSE.
 
-        std_sect_assign(w,1,3,)
+        std_sect_assign(w,1,1,)
         std_sect_assign(w,2,2,)
-        std_sect_assign(w,3,1,)
+        std_sect_assign(w,3,3,)
         
         allocate(wsp(wspsize,size(x0)-1))
 
@@ -307,7 +293,7 @@ contains
         write(*,*) "-- processing workspace"
         do i = 1, size(wsp,1)
             skipn = 0
-            wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),40,retstat=mixp)
+            wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),200,retstat=mixp)
 !             wsp(i,:) = newtonhessianfree(intersection_diff_scalar, wsp(i,:), 30, report_fd=stdout)
         end do
         write(*,*) "-- reducing workspace"
@@ -360,7 +346,7 @@ contains
         function intersection_diff_scalar(xp) result(dev)
             real(mpc), intent(in), dimension(:) :: xp
             real(mpc) :: dev
-            real(mpc) :: temp(6, size(x0))
+            real(mpc) :: temp(6, size(x0)), norms(6)
             integer :: i, cd, retstat, b = 1, dir, sectn
             cd = size(x0)
             call integ%set_inicond((/xp,t0/), t0)
@@ -375,40 +361,53 @@ contains
                 call integ%step()
                 call shift_to_intersect(integ, t1, retstat)
                 if (retstat == EXIT_FAILURE) then 
-                    exit shift! to avoid useless computations
+                    go to 505! to avoid useless computations
                 end if
             end do shift
             
-            if (retstat == EXIT_SUCCESS) then
-                comp: do i = 1, 2*Nbodies
-                    sectn = mod(i-1, Nbodies) + 1
-                    current%S => sections(sectn)%S
-                    current%dS => sections(sectn)%dS
-                    
-                    call shift_to_intersect(integ, t1, retstat)
-                    temp(i, :) = integ%val()
-                  
-                    if (cycleshiftp) then
-                        dir = mod(i, Nbodies) - 1
-                        temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
-                    end if
-                    if (retstat == EXIT_FAILURE) then 
-                        exit comp
-                    end if
-                end do comp
-            end if
-            if (retstat == EXIT_SUCCESS) then 
-                dev =  &
+            comp: do i = 1, 2*Nbodies
+                sectn = mod(i-1, Nbodies) + 1
+                current%S => sections(sectn)%S
+                current%dS => sections(sectn)%dS
+                
+!                 workaround to get right intersections
+                if (i == Nbodies+1) then
+                    call shift_to_intersect(integ,t1,retstat)
+                    call integ%step()
+                    call shift_to_intersect(integ,t1,retstat)
+                    call integ%step()
+                    call shift_to_intersect(integ,t1,retstat)
+                    call integ%step()
+                end if
+
+                call shift_to_intersect(integ, t1, retstat)
+                temp(i, :) = integ%val()
+                norms(i) = norm2(temp(i, 1:shapespDim))
+
+                if (cycleshiftp) then
+                    dir = mod(i, Nbodies) - 1
+                    temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
+                end if
+                if (retstat == EXIT_FAILURE) then 
+                    go to 505
+                end if
+            end do comp
+
+
+            dev =  &
                 &( &
                 & + norm2(temp(6, 1:cd-1) - temp(3, 1:cd-1))**(2)&
                 & + norm2(temp(5, 1:cd-1) - temp(2, 1:cd-1))**(2)&
                 & + norm2(temp(4, 1:cd-1) - temp(1, 1:cd-1))**(2)&
-                & + norm2(temp(2, 1:cd-1) - temp(1, 1:cd-1))**(2)&
-                & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2))
-            else
-                dev = error_dev
-                stop 'EOT'
-            endif
+                & + sum(norms - 1)**2 &
+!                 & + norm2(temp(2, 1:cd-1) - temp(1, 1:cd-1))**(2)&
+!                 & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2)&
+                &)
+            return
+
+505         dev = error_dev
+            stop 'EOT'
+            return
         end function 
     
 #if 0

@@ -16,7 +16,13 @@ contains
         real(mpc), dimension(n) :: z
         z = 0.0_mpc
     end function
-   
+  
+    function identity(x) result(x1) 
+        real(mpc), intent(in), dimension(:) :: x
+        real(mpc), dimension(size(x)) :: x1
+        x1 = x
+    end function
+
     function dyad_product(a,b) result(c)
         real(mpc), intent(in), dimension(:) :: a,b
         real(mpc), dimension(size(a),size(b)) :: c
