@@ -83,6 +83,48 @@ contains
         dS(5) = 1.0_mpc
     end function
 
+
+    pure function sect_w_1(X) result (S)
+        real(mpc), dimension(:),intent(in) :: X
+        real(mpc) :: S
+        S = X(1) - 0.0
+    end function
+    pure function sect_w_1_deriv(X) result (dS)
+        real(mpc), dimension(:) :: X
+        real(mpc), dimension(size(X)) :: dS
+        intent(in) :: X
+        dS = 0
+        dS(1) = 1.0_mpc
+    end function
+
+
+    pure function sect_w_2(X) result (S)
+        real(mpc), dimension(:),intent(in) :: X
+        real(mpc) :: S
+        S = X(2) - 0.0
+    end function
+    pure function sect_w_2_deriv(X) result (dS)
+        real(mpc), dimension(:) :: X
+        real(mpc), dimension(size(X)) :: dS
+        intent(in) :: X
+        dS = 0
+        dS(2) = 1.0_mpc
+    end function
+    
+    
+    pure function sect_w_3(X) result (S)
+        real(mpc), dimension(:),intent(in) :: X
+        real(mpc) :: S
+        S = X(3) - 0.0
+    end function
+    pure function sect_w_3_deriv(X) result (dS)
+        real(mpc), dimension(:) :: X
+        real(mpc), dimension(size(X)) :: dS
+        intent(in) :: X
+        dS = 0
+        dS(3) = 1.0_mpc
+    end function
+
     ! a workaround to avoid explicit section pointer passing
     function poincare_section_eq(tt,X) result(f)
         real(mpc), intent(in) :: tt
@@ -215,9 +257,9 @@ contains
     
 
     ! smart macros, where are you..(
-#define std_sect_assign(i,j) \
-    sections(i)%S => CONCAT(sect_x_,j)_body; \
-    sections(i)%dS => CONCAT(sect_x_,j)_body_deriv
+#define std_sect_assign(kind,i,j,afterword) \
+    sections(i)%S => CONCAT(CONCAT(CONCAT(sect_,kind)_,j),afterword); \
+    sections(i)%dS => CONCAT(CONCAT(CONCAT(sect_,kind)_,j),afterword)_deriv
 
 
     subroutine imporove_inipos(integ,t0,x0,t1,fd)
@@ -226,18 +268,25 @@ contains
         integer    :: i, N, fd, fd_, rets, k, j
         intent(in) :: t1, t0, fd
         optional   :: fd
-        integer    :: validp, mixp, skipn
-        real(mpc)  :: wsp(1, 1:size(x0)-1)
-        logical    :: advanced_descent_p
-        skipn = 0
-        mixp = EXIT_SUCCESS; validp = EXIT_SUCCESS
+        integer    :: validp, mixp, skipn, wspsize
+        real(mpc), allocatable, dimension(:,:)  :: wsp
+        logical    :: advanced_descent_p, cycleshiftp
+        
         fd_ = stdout
         if(present (fd)) fd_ = fd
-
-        std_sect_assign(1,2)
-        std_sect_assign(2,3)
-        std_sect_assign(3,1)
         
+        mixp = EXIT_SUCCESS; validp = EXIT_SUCCESS
+        
+        skipn = 0
+        wspsize = 1
+        cycleshiftp = .FALSE.
+
+        std_sect_assign(w,1,3,)
+        std_sect_assign(w,2,2,)
+        std_sect_assign(w,3,1,)
+        
+        allocate(wsp(wspsize,size(x0)-1))
+
         ! extra check
         do i = 1, Nbodies
             if (.not. associated(sections(i)%S) &
@@ -245,7 +294,7 @@ contains
                 & error stop "Define section list before improving!"
         end do
         
-        associate(wsp_id=>x0_ideal(1:size(x0)-1))
+        associate(wsp_id=>x0(1:size(x0)-1))
         
         call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.000_mpc, wsp)
         write(*,*) "-- created random workspace"
@@ -317,6 +366,8 @@ contains
             call integ%set_inicond((/xp,t0/), t0)
             call integ%crewind()
             retstat = EXIT_SUCCESS 
+
+            ! пропуск нескольких оборотов
             shift: do i = 1, skipn
                 current%S => sections(1)%S
                 current%dS => sections(1)%dS
@@ -327,6 +378,7 @@ contains
                     exit shift! to avoid useless computations
                 end if
             end do shift
+            
             if (retstat == EXIT_SUCCESS) then
                 comp: do i = 1, 2*Nbodies
                     sectn = mod(i-1, Nbodies) + 1
@@ -335,10 +387,11 @@ contains
                     
                     call shift_to_intersect(integ, t1, retstat)
                     temp(i, :) = integ%val()
-                   
-                    dir = mod(i, Nbodies) - 1
-                    temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
-                    
+                  
+                    if (cycleshiftp) then
+                        dir = mod(i, Nbodies) - 1
+                        temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
+                    end if
                     if (retstat == EXIT_FAILURE) then 
                         exit comp
                     end if
@@ -357,6 +410,49 @@ contains
                 stop 'EOT'
             endif
         end function 
+    
+#if 0
+        function shapediff(xp) result(dev)
+            real(mpc), intent(in), dimension(:) :: xp
+            real(mpc) :: dev
+            integer :: i, cd, retstat, b = 1, dir, sectn
+            real(mpc) :: temp(3, size(x0))
+            cd = size(x0)
+            
+            call integ%set_inicond((/xp,t0/), t0)
+            call integ%crewind()
+            retstat = EXIT_SUCCESS 
+            
+            do i = 1, 2*Nbodies
+                sectn = mod(i-1, Nbodies) + 1
+                current%S => sections(sectn)%S
+                current%dS => sections(sectn)%dS
+                
+                call shift_to_intersect(integ, t1, retstat)
+                temp(i, :) = integ%val()
+               
+!                 dir = mod(i, Nbodies) - 1
+!                 temp(i, 1:cd-1) = cyclic_shift_bodies(temp(i, 1:cd-1), dir)
+                
+                if (retstat == EXIT_FAILURE) then 
+                    exit comp
+                end if
+            end do comp
+            if (retstat == EXIT_SUCCESS) then 
+                dev =  &
+                &( &
+                & + norm2(temp(3, 1:cd-1) - temp(3, 1:cd-1))**(2)&
+                & + norm2(temp(5, 1:cd-1) - temp(2, 1:cd-1))**(2)&
+                & + norm2(temp(4, 1:cd-1) - temp(1, 1:cd-1))**(2)&
+                & + norm2(temp(2, 1:cd-1) - temp(1, 1:cd-1))**(2)&
+                & + norm2(temp(3, 1:cd-1) - temp(2, 1:cd-1))**(2))
+            else
+                dev = error_dev
+                stop 'EOT'
+            endif
+        end function shapediff
+#endif
+
         function test(x) result(f)
             real(mpc) , intent(in) :: x(:)
             real(mpc) :: f
