@@ -11,3 +11,6 @@ Main time-consuming features:
 *  Poincare sections, somewhat crutchy
 *  transformations to shape space
 * shape space Euler-Lagrange equations (in `Celmech.f90`)
+
+![](./docs/img/orbit.svg)
+

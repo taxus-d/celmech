@@ -12,7 +12,7 @@ module Inival
     real(mpc), parameter :: Period = 6.326_mpc;
     real(kind=mpc),parameter :: t1=19.5*Period          ! Конец интервала интегрирования (начало=0)
     integer,parameter :: ad_ord=6                 ! Порядок для методов Адамса
-    integer,parameter :: D = tDim+1
+    integer,parameter :: D = tDim
     real(kind=mpc),parameter :: h=0.01_mpc           ! Шаг интегрирования
 !     integer, parameter :: D = 2*spcdim*Nbodies                 ! Размерность системы
     real(kind=mpc),dimension(D),parameter :: x0_ideal =(/&
@@ -73,3 +73,4 @@ contains
         deallocate(x_sh)
     end subroutine
 end module Inival
+
