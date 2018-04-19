@@ -209,12 +209,17 @@ contains
     end subroutine init_workspace
 
 
-    subroutine check_workspace(f, wsp, rets)
+    subroutine check_workspace(f, wsp, rets, printp)
         procedure (fRnR1) :: f
         real(mpc), dimension(:,:), intent(in) :: wsp
         integer, intent(out) :: rets
         real(mpc) :: res
         integer :: i
+        logical, optional,intent(in) :: printp
+        
+        logical :: printp_
+        printp_ = .FALSE.
+        if (present(printp)) printp_ = printp
         rets = EXIT_SUCCESS
         do i = 1, size(wsp, 1)
             res = f(wsp(i,:))
@@ -222,6 +227,7 @@ contains
                 rets = EXIT_FAILURE
                 exit
             end if
+            if (printp_) write(*,*) res, wsp(i,:)
         end do
     end subroutine check_workspace
 
@@ -264,7 +270,7 @@ contains
         mixp = EXIT_SUCCESS; validp = EXIT_SUCCESS
         
         skipn = 0
-        wspsize = 1
+        wspsize = 10
         cycleshiftp = .FALSE.
 
         std_sect_assign(w,1,1,)
@@ -280,9 +286,9 @@ contains
                 & error stop "Define section list before improving!"
         end do
         
-        associate(wsp_id=>x0(1:size(x0)-1))
+        associate(wsp_id=>x0(1:size(x0)-1))!, f=>intersection_diff_scalar)
         
-        call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.000_mpc, wsp)
+        call init_workspace(intersection_diff_scalar,x0(1:size(x0)-1), 0.001_mpc, wsp)
         write(*,*) "-- created random workspace"
         call check_workspace(intersection_diff_scalar, wsp, validp)
         if (validp == EXIT_FAILURE) then
@@ -293,9 +299,14 @@ contains
         write(*,*) "-- processing workspace"
         do i = 1, size(wsp,1)
             skipn = 0
-            wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),200,retstat=mixp)
+            do j = 1, 1
+                wsp(i,:) = conjgraddesc(intersection_diff_scalar,wsp(i,:),500,retstat=mixp)
+                write(*,*) '?>', intersection_diff_scalar(wsp(i,:))
+!                 skipn = skipn + 2
 !             wsp(i,:) = newtonhessianfree(intersection_diff_scalar, wsp(i,:), 30, report_fd=stdout)
+            end do
         end do
+        call check_workspace(intersection_diff_scalar, wsp, validp, .TRUE.)
         write(*,*) "-- reducing workspace"
         x0(1:size(x0)-1) = reduce_workspace(intersection_diff_scalar, wsp)
         write(*,*) intersection_diff_scalar(x0(1:size(x0)-1))
@@ -360,6 +371,11 @@ contains
                 call shift_to_intersect(integ, t1, retstat)
                 call integ%step()
                 call shift_to_intersect(integ, t1, retstat)
+                call integ%step()
+                call shift_to_intersect(integ, t1, retstat)
+                call integ%step()
+                call shift_to_intersect(integ, t1, retstat)
+                call integ%step()
                 if (retstat == EXIT_FAILURE) then 
                     go to 505! to avoid useless computations
                 end if

@@ -156,7 +156,7 @@ contains
         end do
         root = x
         if (present(retstat)) then
-            if (penalty > penalty_limit ) then
+            if (penalty >= penalty_limit ) then
                 retstat = EXIT_FAILURE 
             else
                 retstat = EXIT_SUCCESS

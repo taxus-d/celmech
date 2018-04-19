@@ -33,14 +33,14 @@ program main
     ! reuse data from previous runs
 !     read(fd_x0, *) x0_mod(1:12)
     close(fd_x0) 
-    call prarr (x0)
+    call prarr (joinarr_sbs(x0, x0_ideal))
 
     call imporove_inipos(itg_rk, t0, x0, t1, stdout)
     call prarr(joinarr_sbs(x0,x0_ideal))
 !
     call itg_rk%set_inicond(x0, t0)
     call itg_rk%crewind()
-    call print_solution(itg_rk, 200*Period, fd_orbi)
+    call print_solution(itg_rk, 20*Period, fd_orbi)
 
     open(fd_x0, file="data/x0.dat", action="write")
     write(fd_x0, *) x0

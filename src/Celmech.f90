@@ -7,12 +7,12 @@ module Celmech
     !                                                   rotations + baricentric
     integer, parameter :: shapespDim = spcdim * Nbodies - 1       - spcdim
     real(mpc), parameter :: m(Nbodies) = 1.0_mpc
-!     real(mpc), parameter, dimension(3) :: c = (/&
-!         &sqrt((m(2)*m(3))**3 /(m(2) + m(3))),&
-!         &sqrt((m(1)*m(3))**3 /(m(1) + m(3))),&
-!         &sqrt((m(2)*m(1))**3 /(m(2) + m(1))) &
-!     &/)
-    real(mpc), parameter, dimension(3) :: c = 1.0/sqrt(2.0)
+    real(mpc), parameter, dimension(3) :: c = (/&
+        &sqrt((m(2)*m(3))**3 /(m(2) + m(3))),&
+        &sqrt((m(1)*m(3))**3 /(m(1) + m(3))),&
+        &sqrt((m(2)*m(1))**3 /(m(2) + m(1))) &
+    &/)
+!     real(mpc), parameter, dimension(3) :: c = 1.0/sqrt(2.0)
 
     real(mpc), dimension(3,3) :: b  = reshape((/&
         &0.5_mpc, -sqrt(3.0_mpc)/2.0_mpc, 0.0_mpc, & !23
