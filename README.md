@@ -12,5 +12,4 @@ Main time-consuming features:
 *  transformations to shape space
 * shape space Euler-Lagrange equations (in `Celmech.f90`)
 
-![](./docs/img/orbit.svg)
 
